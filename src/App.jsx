@@ -2587,8 +2587,7 @@ export default function App() {
                   {key:'출결 현황', icon:'📅', color:'bg-emerald-50 border-emerald-100', titleColor:'text-emerald-700'},
                   {key:'진도 현황', icon:'📈', color:'bg-teal-50 border-teal-100', titleColor:'text-teal-700'},
                 ];
-                const lines2 = reportText.split('
-');
+                const lines2 = reportText.split('\n');
                 let cur = null;
                 lines2.forEach(line => {
                   const sec = sectionDefs.find(s => line.includes(`[${s.key}]`));
