@@ -605,7 +605,7 @@ export default function App() {
 
   // 시험
   const [newTest, setNewTest] = useState({
-    title: '', source: '', difficulty: '중', description: '',
+    title: '', source: '', testDifficulty: '', difficulty: '중', description: '',
     date: new Date(Date.now() + 9*60*60*1000).toISOString().split('T')[0],
     scales: DEFAULT_GRADE_SCALES, testType: '중간 테스트', mcCount: '', saCount: ''
   });
@@ -814,7 +814,7 @@ export default function App() {
     if (userRole !== 'master' || !newTest.title.trim()) return;
     await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'tests', 't' + Date.now()), { ...newTest });
     setNewTest({
-      title: '', source: '', difficulty: '중', description: '',
+      title: '', source: '', testDifficulty: '', difficulty: '중', description: '',
       date: new Date(Date.now() + 9*60*60*1000).toISOString().split('T')[0],
       scales: DEFAULT_GRADE_SCALES, testType: newTest.testType, mcCount: '', saCount: '', questions: []
     });
@@ -824,6 +824,7 @@ export default function App() {
     if (userRole !== 'master' || !selectedTest) return;
     await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'tests', selectedTest.id), selectedTest, { merge: true });
     setIsTestEditMode(false);
+    setSelectedTest(null);
   };
 
   const saveEditItem = async () => {
@@ -1694,6 +1695,20 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+                  {/* 난이도 */}
+                  <div className="mb-4">
+                    <p className="text-[10px] font-black text-slate-400 mb-2 uppercase">시험 난이도</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['최하','하','중하','중','중상','상','최상'].map(d=>(
+                        <button key={d} onClick={()=>setNewTest(p=>({...p,testDifficulty:d}))}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition ${newTest.testDifficulty===d?'border-transparent text-white shadow-sm':'border-slate-100 text-slate-400'}`}
+                          style={newTest.testDifficulty===d?{background:{'최하':'#3b82f6','하':'#0ea5e9','중하':'#14b8a6','중':'#64748b','중상':'#f59e0b','상':'#f97316','최상':'#ef4444'}[d]}:{}}>
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* 문항 설정 */}
                   <div className="mb-4">
                     <p className="text-[10px] font-black text-slate-400 mb-3 uppercase">문항 설정 (선택)</p>
@@ -3331,9 +3346,9 @@ export default function App() {
                     <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">시험 난이도</p>
                     <div className="flex flex-wrap gap-2">
                       {['최하','하','중하','중','중상','상','최상'].map(d=>(
-                        <button key={d} onClick={()=>setSelectedTest(p=>({...p,difficulty:d}))}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition ${selectedTest.difficulty===d?'border-transparent text-white shadow-sm':'border-slate-100 text-slate-400'}`}
-                          style={selectedTest.difficulty===d?{background:{'최하':'#3b82f6','하':'#0ea5e9','중하':'#14b8a6','중':'#64748b','중상':'#f59e0b','상':'#f97316','최상':'#ef4444'}[d]}:{}}>
+                        <button key={d} onClick={()=>setSelectedTest(p=>({...p,testDifficulty:d}))}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition ${selectedTest.testDifficulty===d?'border-transparent text-white shadow-sm':'border-slate-100 text-slate-400'}`}
+                          style={selectedTest.testDifficulty===d?{background:{'최하':'#3b82f6','하':'#0ea5e9','중하':'#14b8a6','중':'#64748b','중상':'#f59e0b','상':'#f97316','최상':'#ef4444'}[d]}:{}}>
                           {d}
                         </button>
                       ))}
