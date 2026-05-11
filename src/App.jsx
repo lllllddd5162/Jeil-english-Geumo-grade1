@@ -2660,13 +2660,7 @@ export default function App() {
                           <p className="font-black text-sm" style={{color:'var(--sc)'}}>AI 분석 결과</p>
                         </div>
                         <div className="p-5">
-                          {aiAnalysis.split('
-').map((line,i)=>{
-                            const isHead = /^\d+\./.test(line.trim());
-                            return line.trim() ? (
-                              <p key={i} className={`leading-relaxed mb-2 ${isHead ? 'font-black text-slate-800 text-sm mt-3 first:mt-0' : 'text-slate-600 font-medium text-sm pl-3 border-l-2 border-slate-100'}`}>{line}</p>
-                            ) : <div key={i} className="h-1"/>;
-                          })}
+                          <div className="whitespace-pre-wrap text-sm text-slate-700 font-medium leading-relaxed">{aiAnalysis}</div>
                         </div>
                         {!aiLoading && (
                           <div className="px-5 pb-4">
