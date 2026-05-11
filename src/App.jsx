@@ -2577,29 +2577,108 @@ export default function App() {
 
                 <button onClick={generateReport} className="w-full py-4 text-white rounded-2xl font-black shadow-lg transition-all active:scale-95" style={{background:'var(--sc)'}}>리포트 생성</button>
               </div>
-              {reportGenerated && reportText && (
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <p className="font-black text-slate-800">생성된 리포트</p>
-                    <div className="flex gap-2">
-                      <button onClick={()=>navigator.clipboard.writeText(reportText)} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl font-black text-xs flex items-center gap-1"><Copy size={12}/>복사</button>
-                      {!aiLoading && !aiAnalysis && (
-                        <button onClick={requestAiAnalysis} className="px-3 py-1.5 text-white rounded-xl font-black text-xs flex items-center gap-1 shadow-sm" style={{background:'var(--sc)'}}><Sparkles size={12}/>AI 분석</button>
-                      )}
+              {reportGenerated && reportText && (() => {
+                // 섹션 파싱
+                const sections = [];
+                const sectionDefs = [
+                  {key:'과제 현황', icon:'📋', color:'bg-blue-50 border-blue-100', titleColor:'text-blue-700'},
+                  {key:'암기 현황', icon:'🧠', color:'bg-purple-50 border-purple-100', titleColor:'text-purple-700'},
+                  {key:'시험 성적', icon:'🏆', color:'bg-orange-50 border-orange-100', titleColor:'text-orange-700'},
+                  {key:'출결 현황', icon:'📅', color:'bg-emerald-50 border-emerald-100', titleColor:'text-emerald-700'},
+                  {key:'진도 현황', icon:'📈', color:'bg-teal-50 border-teal-100', titleColor:'text-teal-700'},
+                ];
+                const lines2 = reportText.split('
+');
+                let cur = null;
+                lines2.forEach(line => {
+                  const sec = sectionDefs.find(s => line.includes(`[${s.key}]`));
+                  if (sec) { cur = {...sec, lines:[]}; sections.push(cur); }
+                  else if (cur && line.trim() && line !== '================================') cur.lines.push(line);
+                });
+                // 헤더 정보
+                const headerLines = lines2.slice(0,3);
+                return (
+                  <div className="space-y-4">
+                    {/* 헤더 카드 */}
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="font-black text-slate-800 flex items-center gap-2"><Printer size={16}/>생성된 리포트</p>
+                        <div className="flex gap-2">
+                          <button onClick={()=>navigator.clipboard.writeText(reportText)} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl font-black text-xs flex items-center gap-1"><Copy size={12}/>텍스트 복사</button>
+                          {!aiLoading && !aiAnalysis && (
+                            <button onClick={requestAiAnalysis} className="px-3 py-1.5 text-white rounded-xl font-black text-xs flex items-center gap-1 shadow-sm" style={{background:'var(--sc)'}}><Sparkles size={12}/>AI 분석</button>
+                          )}
+                        </div>
+                      </div>
+                      {headerLines.map((l,i)=>(
+                        <p key={i} className="text-xs text-slate-500 font-medium leading-relaxed">{l}</p>
+                      ))}
                     </div>
+
+                    {/* 섹션별 카드 */}
+                    {sections.map((sec,si)=>(
+                      <div key={si} className={`rounded-3xl border shadow-sm overflow-hidden ${sec.color}`}>
+                        <div className={`px-5 py-3 flex items-center gap-2 border-b ${sec.color}`}>
+                          <span className="text-base">{sec.icon}</span>
+                          <p className={`font-black text-sm ${sec.titleColor}`}>{sec.key}</p>
+                        </div>
+                        <div className="bg-white px-5 py-4 space-y-1.5">
+                          {sec.lines.map((line,li)=>{
+                            const isWarn = line.includes('⚠');
+                            const isBullet = line.trim().startsWith('•');
+                            const isSubItem = line.startsWith('    ');
+                            const isTotal = line.includes('완료:') || line.includes('출석률') || line.includes('수업 진행') || line.includes('평균');
+                            return (
+                              <div key={li} className={`
+                                ${isWarn ? 'flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 rounded-xl border border-red-100' : ''}
+                                ${isBullet && !isWarn ? 'flex items-start gap-2 px-2.5 py-2 bg-slate-50 rounded-xl border border-slate-100' : ''}
+                                ${isSubItem && !isWarn ? 'pl-6' : ''}
+                              `}>
+                                {isWarn && <span className="text-red-400 shrink-0 text-xs">⚠</span>}
+                                {isBullet && !isWarn && <span className="text-slate-400 shrink-0 mt-0.5 text-xs">•</span>}
+                                <p className={`text-xs leading-relaxed break-keep
+                                  ${isWarn ? 'text-red-600 font-black' : ''}
+                                  ${isTotal ? 'font-black text-slate-700' : 'font-medium text-slate-600'}
+                                  ${isSubItem && !isWarn ? 'text-slate-500' : ''}
+                                `}>{isBullet ? line.trim().slice(1).trim() : line.trim()}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* AI 분석 */}
+                    {aiLoading && (
+                      <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center flex items-center justify-center gap-2 text-slate-500 font-bold shadow-sm">
+                        <Loader2 size={18} className="animate-spin" style={{color:'var(--sc)'}}/>AI 분석 중...
+                      </div>
+                    )}
+                    {aiAnalysis && !aiLoading && (
+                      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2" style={{background:'var(--sc-faint)'}}>
+                          <Bot size={16} style={{color:'var(--sc)'}}/>
+                          <p className="font-black text-sm" style={{color:'var(--sc)'}}>AI 분석 결과</p>
+                        </div>
+                        <div className="p-5">
+                          {aiAnalysis.split('
+').map((line,i)=>{
+                            const isHead = /^\d+\./.test(line.trim());
+                            return line.trim() ? (
+                              <p key={i} className={`leading-relaxed mb-2 ${isHead ? 'font-black text-slate-800 text-sm mt-3 first:mt-0' : 'text-slate-600 font-medium text-sm pl-3 border-l-2 border-slate-100'}`}>{line}</p>
+                            ) : <div key={i} className="h-1"/>;
+                          })}
+                        </div>
+                        {!aiLoading && (
+                          <div className="px-5 pb-4">
+                            <button onClick={requestAiAnalysis} className="px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl font-black text-xs flex items-center gap-1"><RefreshCw size={11}/>재분석</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="p-6">
-                    <pre className="text-xs font-mono text-slate-600 whitespace-pre-wrap leading-relaxed select-text">{reportText}</pre>
-                  </div>
-                  {aiLoading && <div className="p-8 text-center flex items-center justify-center gap-2 text-slate-500 font-bold"><Loader2 size={18} className="animate-spin" style={{color:'var(--sc)'}}/>AI 분석 중...</div>}
-                  {aiAnalysis && !aiLoading && (
-                    <div className="p-6 border-t border-slate-100">
-                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><Bot size={12}/>AI 분석 결과</p>
-                      <div className="prose prose-sm max-w-none text-slate-700 font-medium leading-relaxed whitespace-pre-wrap text-sm">{aiAnalysis}</div>
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
