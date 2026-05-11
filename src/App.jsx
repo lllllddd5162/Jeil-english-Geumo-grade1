@@ -1777,6 +1777,10 @@ export default function App() {
                                 <p className="leading-snug">{t.title}</p>
                                 <p className="text-[8px] text-orange-400 font-bold">{t.date}{t.maxScore ? ` · 만점 ${t.maxScore}점` : ''}</p>
                                 <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 mt-0.5 inline-block">AVG {stats.testAverages[t.id]}{t.maxScore ? ` / ${t.maxScore}` : ''}</span>
+                                {t.testDifficulty && (() => {
+                                  const dc = {'최하':'bg-blue-100 text-blue-600','하':'bg-sky-100 text-sky-600','중하':'bg-teal-100 text-teal-600','중':'bg-slate-100 text-slate-600','중상':'bg-amber-100 text-amber-600','상':'bg-orange-100 text-orange-600','최상':'bg-red-100 text-red-600'};
+                                  return <span className={`text-[8px] font-black px-1.5 py-0.5 rounded mt-0.5 ml-1 inline-block ${dc[t.testDifficulty]||'bg-slate-100 text-slate-500'}`}>{t.testDifficulty}</span>;
+                                })()}
                                 {userRole === 'master' && (
                                   <div className="flex justify-center gap-1 mt-1">
                                     <button onClick={()=>setSelectedTest({...t})} className="text-[8px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-400 hover:bg-blue-100 font-black transition-all">수정</button>
