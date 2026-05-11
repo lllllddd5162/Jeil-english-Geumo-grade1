@@ -3045,7 +3045,8 @@ export default function App() {
                               const list = regCategory==='assignment'?assignments:memoItems;
                               const id = (regCategory==='assignment'?'a':'m')+Date.now();
                               const sortOrder = list.length>0?Math.max(...list.map(x=>x.sortOrder||0))+1:0;
-                              await setDoc(doc(db,'artifacts',APP_ID,'public','data',coll,id),{...a,id:undefined,title:a.title+' (복사)',sortOrder,});
+                              const {id:_omit,...rest} = a;
+                              await setDoc(doc(db,'artifacts',APP_ID,'public','data',coll,id),{...rest,title:a.title+' (복사)',sortOrder});
                             }} className="p-2 text-emerald-500 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all" title="복사"><Copy size={15}/></button>
                             <button onClick={()=>{setEditItemId(a.id);setEditItemData({...a});}} className="p-2 text-indigo-500 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all"><Edit2 size={15}/></button>
                             <button onClick={()=>deleteItem(regCategory==='assignment'?'assignments':'memoItems',a.id)} className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl transition-all"><Trash2 size={15}/></button>
