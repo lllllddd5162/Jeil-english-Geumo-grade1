@@ -1047,31 +1047,125 @@ export default function App() {
     const inRange = (date) => !date || (date >= fromDate && date <= toDate);
     const lines = [];
     const now = new Date(Date.now()+9*60*60*1000).toISOString().split('T')[0];
-    lines.push(`===== 학원 학습 종합 리포트 =====`);
+
+    lines.push('===== 학원 영어 학습 종합 리포트 =====');
     lines.push(`생성일: ${now}  |  기간: ${from||'전체'} ~ ${to||'전체'}`);
-    lines.push(`학생 수: ${students.length}명\n`);
-    lines.push(`[과제 현황]`);
+    lines.push(`학생 수: ${students.length}명`);
+    lines.push('');
+
+    // ── 1. 과제 현황 ──
+    lines.push('[과제 현황]');
     const rangedAssign = assignments.filter(a => inRange(a.deadline));
-    rangedAssign.forEach(a => {
-      lines.push(`\n• ${a.subject} / ${a.level} — ${a.title}${a.deadline ? ` (마감: ${a.deadline})` : ''}`);
-      students.forEach(s => {
-        if (!(a.type === 'all' || (a.targetStudents && a.targetStudents.includes(s.id)))) return;
-        const sub = submissions[`${s.id}-${a.id}`] || {};
-        lines.push(`  ${s.name}: ${ASSIGN_STATUS_CONFIG[sub.status||'not_started']?.label||'-'}${sub.completionDate ? ` (완료일: ${sub.completionDate})` : ''}`);
+    if (!rangedAssign.length) {
+      lines.push('  (해당 기간 과제 없음)');
+    } else {
+      const completedAll = rangedAssign.filter(a => students.every(s => {
+        if (!(a.type==='all'||(a.targetStudents&&a.targetStudents.includes(s.id)))) return true;
+        const st = submissions[`${s.id}-${a.id}`]?.status||'not_started';
+        return st==='completed'||st==='exempt';
+      }));
+      lines.push(`  완료된 과제: ${completedAll.length}/${rangedAssign.length}개`);
+      rangedAssign.forEach(a => {
+        const targets = students.filter(s => a.type==='all'||(a.targetStudents&&a.targetStudents.includes(s.id)));
+        const done = targets.filter(s => ['completed','exempt'].includes(submissions[`${s.id}-${a.id}`]?.status||'not_started')).length;
+        const pct = targets.length ? Math.round(done/targets.length*100) : 0;
+        lines.push(`  • [${a.subject||'-'}] ${a.title} — 완료율 ${pct}% (${done}/${targets.length}명)${a.deadline?` 마감:${a.deadline}`:''}`);
+        targets.filter(s => !['completed','exempt'].includes(submissions[`${s.id}-${a.id}`]?.status||'not_started'))
+          .forEach(s => lines.push(`    ⚠ 미완료: ${s.name}`));
       });
-    });
-    if (!rangedAssign.length) lines.push('  (해당 기간 과제 없음)');
-    lines.push(`\n[암기 현황]`);
-    memoItems.forEach(m => {
-      lines.push(`\n• ${m.subject} / ${m.level} — ${m.title}${m.memoSection ? ` [${m.memoSection}]` : ''}`);
-      students.forEach(s => {
-        if (!(m.type === 'all' || (m.targetStudents && m.targetStudents.includes(s.id)))) return;
-        const sub = memoSubmissions[`${s.id}-${m.id}`] || {};
-        lines.push(`  ${s.name}: ${MEMO_STATUS_CONFIG[sub.status||'not_started']?.label||'-'}`);
+    }
+    lines.push('');
+
+    // ── 2. 암기 현황 ──
+    lines.push('[암기 현황]');
+    if (!memoItems.length) {
+      lines.push('  (암기 항목 없음)');
+    } else {
+      memoItems.forEach(m => {
+        const targets = students.filter(s => m.type==='all'||(m.targetStudents&&m.targetStudents.includes(s.id)));
+        const r4 = targets.filter(s => memoSubmissions[`${s.id}-${m.id}`]?.status==='round_4').length;
+        const pct = targets.length ? Math.round(r4/targets.length*100) : 0;
+        lines.push(`  • [${m.subject||'-'}${m.memoSection?` / ${m.memoSection}`:''}] ${m.title} — 4회독 완료 ${pct}% (${r4}/${targets.length}명)`);
+        targets.forEach(s => {
+          const st = memoSubmissions[`${s.id}-${m.id}`]?.status||'not_started';
+          if (st!=='round_4') lines.push(`    ${s.name}: ${MEMO_STATUS_CONFIG[st]?.label||'-'}`);
+        });
       });
-    });
-    if (!memoItems.length) lines.push('  (암기 항목 없음)');
-    lines.push(`\n================================`);
+    }
+    lines.push('');
+
+    // ── 3. 시험 성적 ──
+    lines.push('[시험 성적]');
+    const rangedTests = tests.filter(t => inRange(t.date));
+    if (!rangedTests.length) {
+      lines.push('  (해당 기간 시험 없음)');
+    } else {
+      rangedTests.forEach(t => {
+        const scores = students.map(s => {
+          const r = testScores[`${s.id}-${t.id}`]||{};
+          return r.absent ? null : (r.score!=null ? parseFloat(r.score) : null);
+        }).filter(v => v!=null && !isNaN(v));
+        const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '-';
+        const max2 = scores.length ? Math.max(...scores) : '-';
+        const min2 = scores.length ? Math.min(...scores) : '-';
+        lines.push(`  • ${t.title} (${t.date}${t.maxScore?` / 만점 ${t.maxScore}점`:''}) — 평균 ${avg}점 | 최고 ${max2}점 | 최저 ${min2}점`);
+        students.forEach(s => {
+          const r = testScores[`${s.id}-${t.id}`]||{};
+          const sc = r.absent ? (r.absent==='absent'?'결시':'비대상') : r.score!=null ? `${r.score}점` : '미입력';
+          const diff = (!r.absent && r.score!=null && avg!=='-') ? ` (평균대비 ${(parseFloat(r.score)-parseFloat(avg))>=0?'+':''}${(parseFloat(r.score)-parseFloat(avg)).toFixed(1)})` : '';
+          lines.push(`    ${s.name}: ${sc}${diff}`);
+        });
+      });
+    }
+    lines.push('');
+
+    // ── 4. 출결 현황 ──
+    lines.push('[출결 현황]');
+    const attDates = Object.keys(attendance)
+      .map(k => k.split('-').slice(1).join('-'))
+      .filter((d,i,a) => a.indexOf(d)===i && inRange(d))
+      .sort();
+    if (!attDates.length) {
+      lines.push('  (해당 기간 출결 기록 없음)');
+    } else {
+      students.forEach(s => {
+        const present = attDates.filter(d => attendance[`${s.id}-${d}`]?.status==='present').length;
+        const late = attDates.filter(d => attendance[`${s.id}-${d}`]?.status==='late').length;
+        const absent2 = attDates.filter(d => attendance[`${s.id}-${d}`]?.status==='absent').length;
+        const total = attDates.length;
+        const rate = total ? Math.round(present/total*100) : 0;
+        lines.push(`  ${s.name}: 출석 ${present}회 / 지각 ${late}회 / 결석 ${absent2}회 (출석률 ${rate}%)`);
+      });
+    }
+    lines.push('');
+
+    // ── 5. 진도 현황 ──
+    lines.push('[진도 현황]');
+    const rangedPlans = progressPlans.filter(p => inRange(p.date));
+    if (!rangedPlans.length) {
+      lines.push('  (해당 기간 진도 기록 없음)');
+    } else {
+      const done2 = rangedPlans.filter(p=>p.done).length;
+      lines.push(`  수업 진행: ${done2}/${rangedPlans.length}회 완료`);
+      // 과목별
+      const subMap = {};
+      rangedPlans.forEach(p => {
+        const sub = p.subject||'미분류';
+        if (!subMap[sub]) subMap[sub]={total:0,done:0};
+        subMap[sub].total++;
+        if (p.done) subMap[sub].done++;
+      });
+      Object.entries(subMap).forEach(([sub,st]) => {
+        lines.push(`  • ${sub}: ${st.done}/${st.total}회`);
+      });
+      rangedPlans.slice(0,10).forEach(p => {
+        lines.push(`  ${p.date} [${p.lessonType||'진도'}${p.subject?` / ${p.subject}`:''}] ${p.unit}${p.done?' ✓':''}`);
+      });
+      if (rangedPlans.length > 10) lines.push(`  ... 외 ${rangedPlans.length-10}건`);
+    }
+    lines.push('');
+    lines.push('================================');
+
     setReportText(lines.join('\n'));
     setReportGenerated(true);
     setAiAnalysis('');
@@ -1088,7 +1182,7 @@ export default function App() {
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1000,
-          messages: [{ role: 'user', content: `당신은 영어 학원 학습 데이터 분석 전문가입니다. 아래 학습 리포트를 분석하고, 한국어로 구체적인 개선점을 제안해 주세요.\n\n리포트:\n${reportText}` }]
+          messages: [{ role: 'user', content: `당신은 영어 학원 학습 데이터 분석 전문가입니다. 아래 학습 리포트를 분석하고 다음 항목을 한국어로 작성해 주세요:\n\n1. 전체 학습 현황 요약 (2-3줄)\n2. 잘하고 있는 점\n3. 개선이 필요한 점 (구체적 학생명과 항목 포함)\n4. 다음 수업을 위한 액션 아이템 3가지\n5. 출결/진도 특이사항\n\n리포트:\n${reportText}` }]
         })
       });
       const data = await res.json();
@@ -2413,11 +2507,74 @@ export default function App() {
           {activeTab === 'report' && userRole !== 'student' && (
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="bg-white p-5 md:p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <h2 className="text-lg font-bold mb-6 flex items-center gap-2"><Printer size={20}/> 리포트 생성</h2>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div><p className="text-[10px] font-black text-slate-400 mb-2">시작일</p><input type="date" value={reportRange.from} onChange={e=>setReportRange(p=>({...p,from:e.target.value}))} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 transition-all" /></div>
-                  <div><p className="text-[10px] font-black text-slate-400 mb-2">종료일</p><input type="date" value={reportRange.to} onChange={e=>setReportRange(p=>({...p,to:e.target.value}))} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 transition-all" /></div>
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Printer size={20}/> 리포트 생성</h2>
+
+                {/* 날짜 범위 입력 */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-2">시작일</p>
+                    <input type="date" value={reportRange.from} onChange={e=>setReportRange(p=>({...p,from:e.target.value}))} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 transition-all text-slate-800" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-2">종료일</p>
+                    <input type="date" value={reportRange.to} onChange={e=>setReportRange(p=>({...p,to:e.target.value}))} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 transition-all text-slate-800" />
+                  </div>
                 </div>
+
+                {/* 빠른 선택 */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {[
+                    {l:'이번 주', fn:()=>{const d=new Date(Date.now()+9*60*60*1000);const day=d.getDay();const mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));const sun=new Date(mon);sun.setDate(mon.getDate()+6);setReportRange({from:mon.toISOString().split('T')[0],to:sun.toISOString().split('T')[0]});}},
+                    {l:'이번 달', fn:()=>{const d=new Date(Date.now()+9*60*60*1000);const y=d.getFullYear();const m=d.getMonth();const last=new Date(y,m+1,0);setReportRange({from:`${y}-${String(m+1).padStart(2,'0')}-01`,to:last.toISOString().split('T')[0]});}},
+                    {l:'지난 달', fn:()=>{const d=new Date(Date.now()+9*60*60*1000);const y=d.getMonth()===0?d.getFullYear()-1:d.getFullYear();const m=d.getMonth()===0?12:d.getMonth();const last=new Date(y,m,0);setReportRange({from:`${y}-${String(m).padStart(2,'0')}-01`,to:last.toISOString().split('T')[0]});}},
+                    {l:'전체', fn:()=>setReportRange({from:'',to:''})},
+                  ].map(btn=>(
+                    <button key={btn.l} onClick={btn.fn} className="px-3 py-1.5 rounded-xl text-xs font-black border border-slate-200 bg-slate-50 text-slate-500 hover:border-blue-400 hover:text-blue-500 transition-all">{btn.l}</button>
+                  ))}
+                </div>
+
+                {/* 달력으로 날짜 선택 */}
+                <div className="mb-5">
+                  <p className="text-[10px] font-black text-slate-400 mb-2 flex items-center gap-1"><Calendar size={11}/> 달력에서 날짜 범위 선택 <span className="text-slate-300 font-medium">(첫 클릭: 시작일, 두 번째 클릭: 종료일)</span></p>
+                  <ProgressMiniCalendar
+                    progressPlans={progressPlans}
+                    progressCalMonth={progressCalMonth}
+                    setProgressCalMonth={setProgressCalMonth}
+                    kstToday={kstToday}
+                    attendance={attendance}
+                    students={students}
+                    makeupDates={makeupDates}
+                    onDateSelect={(date) => {
+                      if (!reportRange.from || (reportRange.from && reportRange.to)) {
+                        setReportRange({from:date, to:''});
+                      } else {
+                        if (date >= reportRange.from) setReportRange(p=>({...p,to:date}));
+                        else setReportRange({from:date, to:reportRange.from});
+                      }
+                    }}
+                  />
+                  {(reportRange.from || reportRange.to) && (
+                    <div className="mt-2 px-4 py-2 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-2">
+                      <Calendar size={12} className="text-blue-400"/>
+                      <span className="text-xs font-black text-blue-600">{reportRange.from||'시작일 미설정'} ~ {reportRange.to||'종료일 미설정'}</span>
+                      <button onClick={()=>setReportRange({from:'',to:''})} className="ml-auto text-blue-300 hover:text-blue-500 font-black text-sm">×</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* 리포트 항목 선택 */}
+                <div className="mb-5">
+                  <p className="text-[10px] font-black text-slate-400 mb-2 uppercase">포함 항목</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[{id:'assign',l:'과제 현황'},{id:'memo',l:'암기 현황'},{id:'test',l:'시험 성적'},{id:'att',l:'출결 현황'},{id:'progress',l:'진도 현황'}].map(item=>(
+                      <label key={item.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer hover:border-blue-300 transition-all select-none">
+                        <input type="checkbox" defaultChecked className="accent-blue-500 w-3 h-3" id={`rpt-${item.id}`}/>
+                        <span className="text-xs font-black text-slate-600">{item.l}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <button onClick={generateReport} className="w-full py-4 text-white rounded-2xl font-black shadow-lg transition-all active:scale-95" style={{background:'var(--sc)'}}>리포트 생성</button>
               </div>
               {reportGenerated && reportText && (
