@@ -2809,9 +2809,52 @@ export default function App() {
                     <div>
                       <p className="text-[10px] font-black text-slate-400 mb-3 uppercase flex items-center gap-1"><UserCheck size={12}/> {regCategory==='memorization'?'4':'3'}. 대상</p>
                       <div className="flex gap-2 mb-3">
-                        <button onClick={()=>setNewAssignment(p=>({...p,type:'all',targetStudents:[]}))} className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 ${newAssignment.type==='all'?'bg-indigo-600 border-indigo-600 text-white shadow-sm':'bg-white border-slate-100 text-slate-400'}`}>전체</button>
-                        <button onClick={()=>setNewAssignment(p=>({...p,type:'individual'}))} className={`flex-1 py-2 rounded-xl text-xs font-black border-2 ${newAssignment.type==='individual'?'bg-indigo-600 border-indigo-600 text-white shadow-sm':'bg-white border-slate-100 text-slate-400'}`}>개별</button>
+                        <button onClick={()=>setNewAssignment(p=>({...p,type:'all',targetStudents:[]}))}
+                          className={`flex-1 py-2 rounded-xl text-xs font-bold border-2 ${newAssignment.type==='all'?'bg-indigo-600 border-indigo-600 text-white shadow-sm':'bg-white border-slate-100 text-slate-400'}`}>전체</button>
+                        <button onClick={()=>setNewAssignment(p=>({...p,type:'group',targetStudents:[]}))}
+                          className={`flex-1 py-2 rounded-xl text-xs font-black border-2 ${newAssignment.type==='group'?'bg-amber-500 border-amber-500 text-white shadow-sm':'bg-white border-slate-100 text-slate-400'}`}>그룹</button>
+                        <button onClick={()=>setNewAssignment(p=>({...p,type:'individual',targetStudents:[]}))}
+                          className={`flex-1 py-2 rounded-xl text-xs font-black border-2 ${newAssignment.type==='individual'?'bg-indigo-600 border-indigo-600 text-white shadow-sm':'bg-white border-slate-100 text-slate-400'}`}>개별</button>
                       </div>
+
+                      {/* 그룹 선택 */}
+                      {newAssignment.type === 'group' && (() => {
+                        const groups = [...new Set(students.map(s=>s.group||'').filter(Boolean))].sort();
+                        if (!groups.length) return <p className="text-xs text-slate-400 font-bold">등록된 그룹이 없습니다. 학생 관리에서 그룹을 설정해주세요.</p>;
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-2">
+                              {groups.map(g=>{
+                                const gStudents = students.filter(s=>s.group===g).map(s=>s.id);
+                                const allSel = gStudents.every(id=>newAssignment.targetStudents.includes(id));
+                                return (
+                                  <button key={g} onClick={()=>{
+                                    setNewAssignment(p=>({
+                                      ...p,
+                                      targetStudents: allSel
+                                        ? p.targetStudents.filter(id=>!gStudents.includes(id))
+                                        : [...new Set([...p.targetStudents,...gStudents])]
+                                    }));
+                                  }} className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition-all flex items-center gap-1.5 ${allSel?'bg-amber-500 border-amber-500 text-white shadow-sm':'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'}`}>
+                                    그룹 {g}
+                                    <span className="text-[10px] opacity-70">({gStudents.length}명)</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {newAssignment.targetStudents.length > 0 && (
+                              <div className="bg-amber-50 rounded-xl px-3 py-2 border border-amber-100">
+                                <p className="text-[10px] font-black text-amber-600 mb-1">선택된 학생 ({newAssignment.targetStudents.length}명)</p>
+                                <p className="text-xs text-amber-700 font-bold">
+                                  {students.filter(s=>newAssignment.targetStudents.includes(s.id)).map(s=>s.name).join(', ')}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* 개별 선택 */}
                       {newAssignment.type === 'individual' && (
                         <div className="flex flex-wrap gap-2">
                           {students.map(s=>(
@@ -2820,7 +2863,10 @@ export default function App() {
                                 ? newAssignment.targetStudents.filter(id=>id!==s.id)
                                 : [...newAssignment.targetStudents,s.id];
                               setNewAssignment(p=>({...p,targetStudents:next}));
-                            }} className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${newAssignment.targetStudents.includes(s.id)?'bg-indigo-600 border-indigo-600 text-white shadow-sm':'border-slate-100 text-slate-400 hover:border-slate-200'}`}>{s.name}</button>
+                            }} className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${newAssignment.targetStudents.includes(s.id)?'bg-indigo-600 border-indigo-600 text-white shadow-sm':'border-slate-100 text-slate-400 hover:border-slate-200'}`}>
+                              {s.name}
+                              {s.group && <span className="ml-1 text-[9px] opacity-60">({s.group})</span>}
+                            </button>
                           ))}
                         </div>
                       )}
@@ -2924,9 +2970,39 @@ export default function App() {
                           <div className="flex flex-wrap gap-1.5 mb-2">
                             <button onClick={()=>setEditItemData(p=>({...p,type:'all',targetStudents:[]}))}
                               className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.type==='all'?'bg-slate-600 border-slate-600 text-white':'border-slate-200 text-slate-400 bg-white'}`}>전체</button>
+                            <button onClick={()=>setEditItemData(p=>({...p,type:'group',targetStudents:[]}))}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.type==='group'?'bg-amber-500 border-amber-500 text-white':'border-slate-200 text-amber-600 bg-amber-50'}`}>그룹</button>
                             <button onClick={()=>setEditItemData(p=>({...p,type:'specific',targetStudents:p.targetStudents||[]}))}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.type==='specific'?'bg-blue-500 border-blue-500 text-white':'border-slate-200 text-slate-400 bg-white'}`}>개별 선택</button>
+                              className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.type==='specific'?'bg-blue-500 border-blue-500 text-white':'border-slate-200 text-slate-400 bg-white'}`}>개별</button>
                           </div>
+                          {editItemData?.type === 'group' && (() => {
+                            const groups = [...new Set(students.map(s=>s.group||'').filter(Boolean))].sort();
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {groups.map(g=>{
+                                    const gStudents = students.filter(s=>s.group===g).map(s=>s.id);
+                                    const allSel = gStudents.every(id=>(editItemData?.targetStudents||[]).includes(id));
+                                    return (
+                                      <button key={g} onClick={()=>setEditItemData(p=>({
+                                        ...p,
+                                        targetStudents: allSel
+                                          ? (p.targetStudents||[]).filter(id=>!gStudents.includes(id))
+                                          : [...new Set([...(p.targetStudents||[]),...gStudents])]
+                                      }))} className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${allSel?'bg-amber-500 border-amber-500 text-white':'border-amber-200 text-amber-600 bg-amber-50'}`}>
+                                        그룹 {g} ({gStudents.length}명)
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                {(editItemData?.targetStudents||[]).length > 0 && (
+                                  <p className="text-[10px] text-amber-600 font-bold px-2">
+                                    {students.filter(s=>(editItemData?.targetStudents||[]).includes(s.id)).map(s=>s.name).join(', ')}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {editItemData?.type === 'specific' && (
                             <div className="flex flex-wrap gap-1.5 mt-1">
                               {students.map(s=>{
@@ -2938,7 +3014,7 @@ export default function App() {
                                       ? (p.targetStudents||[]).filter(id=>id!==s.id)
                                       : [...(p.targetStudents||[]),s.id]
                                   }))} className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${sel?'text-white border-transparent':'border-slate-200 text-slate-400 bg-white'}`}
-                                  style={sel?{background:'var(--sc)'}:{}}>{s.name}</button>
+                                  style={sel?{background:'var(--sc)'}:{}}>{s.name}{s.group?<span className="ml-1 text-[9px] opacity-60">({s.group})</span>:null}</button>
                                 );
                               })}
                             </div>
