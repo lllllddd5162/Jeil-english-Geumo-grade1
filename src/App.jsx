@@ -3327,6 +3327,18 @@ export default function App() {
                       ))}
                     </div>
                   </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">시험 난이도</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['최하','하','중하','중','중상','상','최상'].map(d=>(
+                        <button key={d} onClick={()=>setSelectedTest(p=>({...p,difficulty:d}))}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition ${selectedTest.difficulty===d?'border-transparent text-white shadow-sm':'border-slate-100 text-slate-400'}`}
+                          style={selectedTest.difficulty===d?{background:{'최하':'#3b82f6','하':'#0ea5e9','중하':'#14b8a6','중':'#64748b','중상':'#f59e0b','상':'#f97316','최상':'#ef4444'}[d]}:{}}>
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 {/* 문항 수정 */}
                 {(selectedTest.questions||[]).length > 0 && (
