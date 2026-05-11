@@ -1027,12 +1027,12 @@ export default function App() {
     return {
       assign, memo,
       studentTestAverages: students.reduce((acc, s) => {
-        const scs = mainTests.map(t => { const r=testScores[`${s.id}-${t.id}`]; return r?.absent ? null : r?.score; }).filter(v => v != null);
+        const scs = mainTests.map(t => { const r=testScores[`${s.id}-${t.id}`]; return r?.absent ? null : (r?.score != null ? parseFloat(r.score) : null); }).filter(v => v != null && !isNaN(v));
         acc[s.id] = scs.length ? (scs.reduce((a,b)=>a+b,0)/scs.length).toFixed(1) : "0.0";
         return acc;
       }, {}),
       testAverages: tests.reduce((acc, t) => {
-        const scs = students.map(s => { const r=testScores[`${s.id}-${t.id}`]; return r?.absent ? null : r?.score; }).filter(v => v != null);
+        const scs = students.map(s => { const r=testScores[`${s.id}-${t.id}`]; return r?.absent ? null : (r?.score != null ? parseFloat(r.score) : null); }).filter(v => v != null && !isNaN(v));
         acc[t.id] = scs.length ? (scs.reduce((a,b)=>a+b,0)/scs.length).toFixed(1) : "0.0";
         return acc;
       }, {})
@@ -1670,7 +1670,7 @@ export default function App() {
                                 <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 mt-0.5 inline-block">AVG {stats.testAverages[t.id]}{t.maxScore ? ` / ${t.maxScore}` : ''}</span>
                                 {userRole === 'master' && (
                                   <div className="flex justify-center gap-1 mt-1">
-                                    <button onClick={()=>{setSelectedTest(t);setIsTestEditMode(false);}} className="text-[8px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 hover:bg-slate-200 font-black transition-all">상세</button>
+                                    <button onClick={()=>setSelectedTest({...t})} className="text-[8px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-400 hover:bg-blue-100 font-black transition-all">수정</button>
                                     <button onClick={()=>setConfirmDelete({coll:'tests',id:t.id,label:t.title})} className="text-[8px] px-1.5 py-0.5 rounded bg-red-50 text-red-300 hover:bg-red-100 hover:text-red-500 font-black transition-all">삭제</button>
                                   </div>
                                 )}
@@ -1726,21 +1726,32 @@ export default function App() {
                                         if (allQs.length === 0) return null;
                                         const wrongNums = res.wrongNums || [];
                                         const partialScores = res.partialScores || {};
-                                        const calcScore = () => {
-                                          const maxScore = t.maxScore || allQs.reduce((sum,q)=>sum+(parseFloat(q.points)||0),0);
-                                          const deduct = wrongNums.reduce((sum,n)=>{
-                                            const q = allQs[n-1];
-                                            if (!q) return sum;
-                                            if (q.type === '주관식') return sum + (maxScore - (parseFloat(partialScores[n]) ?? parseFloat(q.points) ?? 0));
-                                            return sum + (parseFloat(q.points)||0);
+                                        // 객관식 총점 = 객관식 배점 합산
+                                        const mcTotal = allQs.filter(q=>q.type!=='주관식').reduce((sum,q)=>sum+(parseFloat(q.points)||0),0);
+                                        // 주관식 총점 = 주관식 배점 합산
+                                        const saTotal = allQs.filter(q=>q.type==='주관식').reduce((sum,q)=>sum+(parseFloat(q.points)||0),0);
+                                        // 만점 = 등록된 만점 또는 전체 배점 합산
+                                        const maxScore = parseFloat(t.maxScore) || (mcTotal + saTotal) || 0;
+                                        if (maxScore === 0) return null;
+                                        // 객관식 오답 차감
+                                        const mcDeduct = wrongNums
+                                          .filter(n=>{ const q=allQs[n-1]; return q && q.type!=='주관식'; })
+                                          .reduce((sum,n)=>sum+(parseFloat(allQs[n-1]?.points)||0),0);
+                                        // 주관식: 배점 - 부분점수 = 차감
+                                        const saDeduct = wrongNums
+                                          .filter(n=>{ const q=allQs[n-1]; return q && q.type==='주관식'; })
+                                          .reduce((sum,n)=>{
+                                            const q=allQs[n-1];
+                                            const full=parseFloat(q?.points)||0;
+                                            const partial=partialScores[n]!=null?parseFloat(partialScores[n]):0;
+                                            return sum+(full-partial);
                                           },0);
-                                          return Math.max(0, maxScore - deduct);
-                                        };
-                                        const auto = calcScore();
+                                        const auto = Math.max(0, maxScore - mcDeduct - saDeduct);
+                                        const autoFixed = isNaN(auto) ? 0 : parseFloat(auto.toFixed(1));
                                         return (
-                                          <button onClick={()=>setDoc(doc(db,'artifacts',APP_ID,'public','data','testScores',`${s.id}-${t.id}`),{score:auto},{merge:true})}
+                                          <button onClick={()=>setDoc(doc(db,'artifacts',APP_ID,'public','data','testScores',`${s.id}-${t.id}`),{score:autoFixed},{merge:true})}
                                             className="text-[8px] font-black px-1.5 py-0.5 rounded-lg bg-orange-100 text-orange-600 hover:bg-orange-200 transition-all leading-none mt-0.5 flex items-center gap-0.5">
-                                            <Zap size={8}/>{auto}점 자동기입
+                                            <Zap size={8}/>{autoFixed}점 자동기입
                                           </button>
                                         );
                                       })()}
@@ -1765,20 +1776,47 @@ export default function App() {
                                       {(t.questions||[]).length > 0 && (
                                         <div className="w-full mt-1 pt-1 border-t border-slate-50">
                                           <p className="text-[8px] font-black text-slate-300 mb-1 text-center">오답 토글</p>
-                                          <div className="flex flex-wrap gap-0.5 justify-center">
+                                          <div className="flex flex-wrap gap-0.5 justify-center mb-1">
                                             {(t.questions||[]).map((q,qi)=>{
                                               const wrongNums = res.wrongNums||[];
                                               const isWrong = wrongNums.includes(qi+1);
+                                              const isSA = q.type==='주관식';
                                               return (
                                                 <button key={qi} onClick={()=>{
                                                   const next = isWrong ? wrongNums.filter(n=>n!==qi+1) : [...wrongNums,qi+1];
                                                   setDoc(doc(db,'artifacts',APP_ID,'public','data','testScores',`${s.id}-${t.id}`),{wrongNums:next},{merge:true});
-                                                }} className={`w-6 h-6 rounded-lg text-[8px] font-black border transition-all leading-none ${isWrong?'bg-red-500 border-red-500 text-white':'bg-white border-slate-200 text-slate-300 hover:border-red-300'}`}>
-                                                  {q.num||qi+1}
+                                                }} className={`w-6 h-6 rounded-lg text-[8px] font-black border transition-all leading-none ${isWrong?(isSA?'bg-purple-500 border-purple-500 text-white':'bg-red-500 border-red-500 text-white'):'bg-white border-slate-200 text-slate-300 hover:border-red-300'}`}
+                                                title={isSA?'주관식':'객관식'}>
+                                                  {isSA?'주':'객'}{q.num||qi+1}
                                                 </button>
                                               );
                                             })}
                                           </div>
+                                          {/* 주관식 오답 - 부분점수 입력 */}
+                                          {(res.wrongNums||[]).some(n=>(t.questions||[])[n-1]?.type==='주관식') && (
+                                            <div className="space-y-1 mt-1">
+                                              <p className="text-[8px] font-black text-purple-400 text-center">주관식 부분점수</p>
+                                              {(res.wrongNums||[]).filter(n=>(t.questions||[])[n-1]?.type==='주관식').sort((a,b)=>a-b).map(n=>{
+                                                const q=(t.questions||[])[n-1];
+                                                const partialScores=res.partialScores||{};
+                                                return (
+                                                  <div key={n} className="flex items-center gap-2 bg-purple-50 px-2 py-1 rounded-lg">
+                                                    <span className="text-[9px] font-black text-purple-600 shrink-0">주{q.num||n}번</span>
+                                                    {q.points && <span className="text-[9px] text-purple-400 shrink-0">/{q.points}점</span>}
+                                                    <input type="number" min="0" max={q.points||9999}
+                                                      value={partialScores[n]??''}
+                                                      onChange={e=>{
+                                                        const val = e.target.value===''?null:Math.max(0,Math.min(parseFloat(e.target.value)||0,parseFloat(q.points)||9999));
+                                                        const newPS={...partialScores,[n]:val};
+                                                        setDoc(doc(db,'artifacts',APP_ID,'public','data','testScores',`${s.id}-${t.id}`),{partialScores:newPS},{merge:true});
+                                                      }}
+                                                      placeholder="부분점수"
+                                                      className="flex-1 min-w-0 px-1.5 py-0.5 bg-white border border-purple-200 rounded-lg text-[10px] font-bold text-center outline-none focus:border-purple-400"/>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -1804,11 +1842,11 @@ export default function App() {
                                     );
                                   })()}
                                   {/* 등수 */}
-                                  {!res.absent && score!=null && (() => {
-                                    const allScores = students.map(st=>{const r=testScores[`${st.id}-${t.id}`];return r?.absent?null:r?.score;}).filter(v=>v!=null).sort((a,b)=>b-a);
-                                    const rank = allScores.indexOf(score)+1;
+                                  {!res.absent && score!=null && !isNaN(parseFloat(score)) && (() => {
+                                    const allScores = students.map(st=>{const r=testScores[`${st.id}-${t.id}`];const v=r?.absent?null:parseFloat(r?.score);return(!isNaN(v)&&v!=null)?v:null;}).filter(v=>v!=null).sort((a,b)=>b-a);
+                                    const rank = allScores.indexOf(parseFloat(score))+1;
                                     const total = allScores.length;
-                                    return <p className="text-[8px] font-black text-indigo-400 mt-0.5">{rank}/{total}등</p>;
+                                    return rank>0 ? <p className="text-[8px] font-black text-indigo-400 mt-0.5">{rank}/{total}등</p> : null;
                                   })()}
                                 </td>
                               );
@@ -2874,6 +2912,77 @@ export default function App() {
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* 시험 정보 수정 모달 */}
+        {selectedTest && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" onClick={()=>setSelectedTest(null)}>
+            <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95" onClick={e=>e.stopPropagation()}>
+              <div className="p-6 text-white flex justify-between items-start" style={{background:'var(--sc-darker)'}}>
+                <div>
+                  <h2 className="text-xl font-black">시험 정보 수정</h2>
+                  <p className="text-white/60 text-sm mt-1">{selectedTest.title}</p>
+                </div>
+                <button onClick={()=>setSelectedTest(null)} className="p-1 hover:bg-white/10 rounded-full"><LucideX size={20}/></button>
+              </div>
+              <div className="p-6 max-h-[70vh] overflow-y-auto space-y-4">
+                {/* 기본 정보 수정 */}
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">시험 명칭</p>
+                    <BufferedInput value={selectedTest.title||''} onSave={(v)=>setSelectedTest(p=>({...p,title:v}))}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-orange-400 transition-all text-slate-800"/>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">실시 일자</p>
+                      <input type="date" value={selectedTest.date||''} onChange={e=>setSelectedTest(p=>({...p,date:e.target.value}))}
+                        className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-orange-400 transition-all text-slate-800"/>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">만점</p>
+                      <BufferedInput type="number" value={selectedTest.maxScore??''} onSave={(v)=>setSelectedTest(p=>({...p,maxScore:v===''?null:parseFloat(v)||null}))}
+                        className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-orange-400 transition-all text-slate-800" placeholder="예: 100"/>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">시험 유형</p>
+                    <div className="flex gap-2">
+                      {['중간 테스트','미니 테스트'].map(t=>(
+                        <button key={t} onClick={()=>setSelectedTest(p=>({...p,testType:t}))}
+                          className={`px-4 py-2 rounded-xl text-xs font-black border-2 transition ${selectedTest.testType===t?'bg-orange-500 border-orange-500 text-white':'border-slate-100 text-slate-400'}`}>{t}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {/* 문항 수정 */}
+                {(selectedTest.questions||[]).length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-2">문항 수정</p>
+                    <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                      {(selectedTest.questions||[]).map((q,i)=>(
+                        <div key={i} className="grid grid-cols-12 gap-2 items-center bg-slate-50 px-3 py-2 rounded-2xl border border-slate-100">
+                          <span className="col-span-2 text-[10px] font-black text-slate-500">{q.type==='주관식'?'주':'객'}{q.num||i+1}번</span>
+                          <input type="number" value={q.points||''} onChange={(e)=>{const qs=[...(selectedTest.questions||[])];qs[i]={...qs[i],points:e.target.value};setSelectedTest(p=>({...p,questions:qs}));}}
+                            placeholder="배점" className="col-span-2 px-2 py-1 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-orange-400 text-center"/>
+                          <input type="text" value={q.unit||''} onChange={(e)=>{const qs=[...(selectedTest.questions||[])];qs[i]={...qs[i],unit:e.target.value};setSelectedTest(p=>({...p,questions:qs}));}}
+                            placeholder="단원" className="col-span-5 px-2 py-1 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-orange-400"/>
+                          <select value={q.difficulty||'중'} onChange={(e)=>{const qs=[...(selectedTest.questions||[])];qs[i]={...qs[i],difficulty:e.target.value};setSelectedTest(p=>({...p,questions:qs}));}}
+                            className="col-span-3 px-1 py-1 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
+                            {['하','중하','중','중상','상','극상'].map(d=><option key={d}>{d}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-3 pt-2">
+                  <button onClick={()=>setSelectedTest(null)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm">취소</button>
+                  <button onClick={updateTestDetails} className="flex-2 px-8 py-3 text-white rounded-2xl font-black text-sm shadow-lg transition-all active:scale-95" style={{background:'var(--sc)'}}>저장</button>
+                </div>
+              </div>
             </div>
           </div>
         )}
