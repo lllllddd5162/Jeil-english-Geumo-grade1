@@ -2506,169 +2506,168 @@ export default function App() {
           ==================================================== */}
           {activeTab === 'report' && userRole !== 'student' && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <div className="bg-white p-5 md:p-8 rounded-3xl border border-slate-200 shadow-sm">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Printer size={20}/> 리포트 생성</h2>
+              {/* 리포트 생성 */}
+              {(() => {
+                const hasSelection = Object.values(selectedReportTests).some(Boolean);
+                const chosenTests = hasSelection ? tests.filter(t => selectedReportTests[t.id]) : tests;
 
-                {/* 날짜 범위 입력 */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 mb-2">시작일</p>
-                    <input type="date" value={reportRange.from} onChange={e=>setReportRange(p=>({...p,from:e.target.value}))} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 transition-all text-slate-800" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 mb-2">종료일</p>
-                    <input type="date" value={reportRange.to} onChange={e=>setReportRange(p=>({...p,to:e.target.value}))} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 transition-all text-slate-800" />
-                  </div>
-                </div>
+                const printReport = () => {
+                  const win = window.open('', '_blank', 'width=1000,height=900');
+                  const now = new Date(Date.now()+9*60*60*1000).toISOString().split('T')[0];
+                  const fromDate = reportRange.from || '';
+                  const toDate = reportRange.to || '';
+                  const inRange = (date) => !date || (!fromDate && !toDate) || (date >= (fromDate||'0000') && date <= (toDate||'9999'));
 
-                {/* 빠른 선택 */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {[
-                    {l:'이번 주', fn:()=>{const d=new Date(Date.now()+9*60*60*1000);const day=d.getDay();const mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));const sun=new Date(mon);sun.setDate(mon.getDate()+6);setReportRange({from:mon.toISOString().split('T')[0],to:sun.toISOString().split('T')[0]});}},
-                    {l:'이번 달', fn:()=>{const d=new Date(Date.now()+9*60*60*1000);const y=d.getFullYear();const m=d.getMonth();const last=new Date(y,m+1,0);setReportRange({from:`${y}-${String(m+1).padStart(2,'0')}-01`,to:last.toISOString().split('T')[0]});}},
-                    {l:'지난 달', fn:()=>{const d=new Date(Date.now()+9*60*60*1000);const y=d.getMonth()===0?d.getFullYear()-1:d.getFullYear();const m=d.getMonth()===0?12:d.getMonth();const last=new Date(y,m,0);setReportRange({from:`${y}-${String(m).padStart(2,'0')}-01`,to:last.toISOString().split('T')[0]});}},
-                    {l:'전체', fn:()=>setReportRange({from:'',to:''})},
-                  ].map(btn=>(
-                    <button key={btn.l} onClick={btn.fn} className="px-3 py-1.5 rounded-xl text-xs font-black border border-slate-200 bg-slate-50 text-slate-500 hover:border-blue-400 hover:text-blue-500 transition-all">{btn.l}</button>
-                  ))}
-                </div>
+                  // ── 학생별 시험 성적 ──
+                  const sortedTests2 = chosenTests.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+                  const thds = sortedTests2.map(t =>
+                    `<th style="padding:7px 8px;background:#fff7ed;color:#ea580c;font-size:10px;white-space:nowrap;border:1px solid #e2e8f0">${t.title}<br/><span style="font-weight:400;font-size:9px">${t.date}${t.maxScore ? ' · '+t.maxScore+'점' : ''}</span></th>`
+                  ).join('');
 
-                {/* 달력으로 날짜 선택 */}
-                <div className="mb-5">
-                  <p className="text-[10px] font-black text-slate-400 mb-2 flex items-center gap-1"><Calendar size={11}/> 달력에서 날짜 범위 선택 <span className="text-slate-300 font-medium">(첫 클릭: 시작일, 두 번째 클릭: 종료일)</span></p>
-                  <ProgressMiniCalendar
-                    progressPlans={progressPlans}
-                    progressCalMonth={progressCalMonth}
-                    setProgressCalMonth={setProgressCalMonth}
-                    kstToday={kstToday}
-                    attendance={attendance}
-                    students={students}
-                    makeupDates={makeupDates}
-                    onDateSelect={(date) => {
-                      if (!reportRange.from || (reportRange.from && reportRange.to)) {
-                        setReportRange({from:date, to:''});
-                      } else {
-                        if (date >= reportRange.from) setReportRange(p=>({...p,to:date}));
-                        else setReportRange({from:date, to:reportRange.from});
-                      }
-                    }}
-                  />
-                  {(reportRange.from || reportRange.to) && (
-                    <div className="mt-2 px-4 py-2 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-2">
-                      <Calendar size={12} className="text-blue-400"/>
-                      <span className="text-xs font-black text-blue-600">{reportRange.from||'시작일 미설정'} ~ {reportRange.to||'종료일 미설정'}</span>
-                      <button onClick={()=>setReportRange({from:'',to:''})} className="ml-auto text-blue-300 hover:text-blue-500 font-black text-sm">×</button>
-                    </div>
-                  )}
-                </div>
+                  const studentRows = students.map(s => {
+                    const tds = sortedTests2.map(t => {
+                      const res = testScores[`${s.id}-${t.id}`] || {};
+                      const sc = res.score;
+                      const val = res.absent === 'absent' ? '결시' : res.absent === 'excluded' ? '-' : sc != null ? sc+'점' : '-';
+                      const color = res.absent === 'absent' ? '#ef4444' : sc != null ? '#1e293b' : '#cbd5e1';
+                      const pct = (sc != null && t.maxScore) ? ' ('+Math.round(sc/t.maxScore*100)+'%)' : '';
+                      return `<td style="padding:7px 8px;text-align:center;font-weight:${sc!=null||res.absent?'900':'400'};color:${color};border:1px solid #e2e8f0">${val}${pct}</td>`;
+                    }).join('');
+                    const validScores = sortedTests2.map(t => { const r=testScores[`${s.id}-${t.id}`]; return r?.absent?null:(r?.score!=null?parseFloat(r.score):null); }).filter(v=>v!=null&&!isNaN(v));
+                    const avg = validScores.length ? (validScores.reduce((a,b)=>a+b,0)/validScores.length).toFixed(1) : '-';
+                    const wrongUnits = sortedTests2.flatMap(t => { const r=testScores[`${s.id}-${t.id}`]||{}; return (r.wrongNums||[]).map(n=>(t.questions||[])[n-1]?.unit).filter(Boolean); });
+                    const unitMap = {}; wrongUnits.forEach(u=>{unitMap[u]=(unitMap[u]||0)+1;});
+                    const topUnits = Object.entries(unitMap).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([u,c])=>`${u}(${c}회)`).join(', ');
+                    return `<tr><td style="padding:7px 8px;font-weight:700;white-space:nowrap;border:1px solid #e2e8f0">${s.name}</td>${tds}<td style="padding:7px 8px;text-align:center;font-weight:900;color:#ea580c;border:1px solid #e2e8f0">${avg}${avg!=='-'?'점':''}</td><td style="padding:7px 8px;font-size:10px;color:#ef4444;border:1px solid #e2e8f0">${topUnits||'-'}</td></tr>`;
+                  }).join('');
 
-                {/* 리포트 항목 선택 */}
-                <div className="mb-5">
-                  <p className="text-[10px] font-black text-slate-400 mb-2 uppercase">포함 항목</p>
-                  <div className="flex flex-wrap gap-2">
-                    {[{id:'assign',l:'과제 현황'},{id:'memo',l:'암기 현황'},{id:'test',l:'시험 성적'},{id:'att',l:'출결 현황'},{id:'progress',l:'진도 현황'}].map(item=>(
-                      <label key={item.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer hover:border-blue-300 transition-all select-none">
-                        <input type="checkbox" defaultChecked className="accent-blue-500 w-3 h-3" id={`rpt-${item.id}`}/>
-                        <span className="text-xs font-black text-slate-600">{item.l}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                  // ── 반 평균 ──
+                  const avgs = sortedTests2.map(t => {
+                    const vs = students.map(s=>{const r=testScores[`${s.id}-${t.id}`];const v=r?.absent?null:parseFloat(r?.score);return(!isNaN(v)&&v!=null)?v:null;}).filter(v=>v!=null);
+                    const avg = vs.length ? (vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(1) : '-';
+                    return `<td style="padding:7px 8px;text-align:center;font-weight:900;color:#ea580c;background:#fff7ed;border:1px solid #e2e8f0">${avg}${avg!=='-'?'점':''}</td>`;
+                  }).join('');
 
-                <button onClick={generateReport} className="w-full py-4 text-white rounded-2xl font-black shadow-lg transition-all active:scale-95" style={{background:'var(--sc)'}}>리포트 생성</button>
-              </div>
-              {reportGenerated && reportText && (() => {
-                // 섹션 파싱
-                const sections = [];
-                const sectionDefs = [
-                  {key:'과제 현황', icon:'📋', color:'bg-blue-50 border-blue-100', titleColor:'text-blue-700'},
-                  {key:'암기 현황', icon:'🧠', color:'bg-purple-50 border-purple-100', titleColor:'text-purple-700'},
-                  {key:'시험 성적', icon:'🏆', color:'bg-orange-50 border-orange-100', titleColor:'text-orange-700'},
-                  {key:'출결 현황', icon:'📅', color:'bg-emerald-50 border-emerald-100', titleColor:'text-emerald-700'},
-                  {key:'진도 현황', icon:'📈', color:'bg-teal-50 border-teal-100', titleColor:'text-teal-700'},
-                ];
-                const lines2 = reportText.split('\n');
-                let cur = null;
-                lines2.forEach(line => {
-                  const sec = sectionDefs.find(s => line.includes(`[${s.key}]`));
-                  if (sec) { cur = {...sec, lines:[]}; sections.push(cur); }
-                  else if (cur && line.trim() && line !== '================================') cur.lines.push(line);
-                });
-                // 헤더 정보
-                const headerLines = lines2.slice(0,3);
+                  // ── 과제 현황 ──
+                  const rangedAssign = assignments.filter(a => inRange(a.deadline));
+                  const assignRows = rangedAssign.map(a => {
+                    const targets = students.filter(s => a.type==='all'||(a.targetStudents&&a.targetStudents.includes(s.id)));
+                    const done = targets.filter(s => ['completed','exempt'].includes(submissions[`${s.id}-${a.id}`]?.status||'not_started')).length;
+                    const pct = targets.length ? Math.round(done/targets.length*100) : 0;
+                    const incomplete = targets.filter(s => !['completed','exempt'].includes(submissions[`${s.id}-${a.id}`]?.status||'not_started')).map(s=>s.name).join(', ');
+                    return `<tr><td style="padding:6px 8px;border:1px solid #e2e8f0;font-weight:700">${a.subject||'-'}</td><td style="padding:6px 8px;border:1px solid #e2e8f0">${a.title}</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:900;color:${pct===100?'#22c55e':'#ea580c'}">${pct}%</td><td style="padding:6px 8px;border:1px solid #e2e8f0;font-size:10px;color:#ef4444">${incomplete||'전원 완료'}</td></tr>`;
+                  }).join('');
+
+                  // ── 진도 현황 ──
+                  const rangedPlans = progressPlans.filter(p => inRange(p.date)).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+                  const planRows = rangedPlans.map(p =>
+                    `<tr><td style="padding:5px 8px;border:1px solid #e2e8f0;white-space:nowrap">${p.date||'-'}</td><td style="padding:5px 8px;border:1px solid #e2e8f0">${p.lessonType||'진도'}</td><td style="padding:5px 8px;border:1px solid #e2e8f0">${p.subject||'-'}</td><td style="padding:5px 8px;border:1px solid #e2e8f0">${p.unit||'-'}</td><td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;color:${p.done?'#22c55e':'#94a3b8'}">${p.done?'✓':'-'}</td></tr>`
+                  ).join('');
+
+                  // ── 출결 현황 ──
+                  const attDates = Object.keys(attendance).map(k=>k.split('-').slice(1).join('-')).filter((d,i,a)=>a.indexOf(d)===i&&inRange(d)).sort();
+                  const attRows = students.map(s => {
+                    const present = attDates.filter(d=>attendance[`${s.id}-${d}`]?.status==='present').length;
+                    const late = attDates.filter(d=>attendance[`${s.id}-${d}`]?.status==='late').length;
+                    const absent2 = attDates.filter(d=>attendance[`${s.id}-${d}`]?.status==='absent').length;
+                    const rate = attDates.length ? Math.round(present/attDates.length*100) : 0;
+                    return `<tr><td style="padding:6px 8px;border:1px solid #e2e8f0;font-weight:700">${s.name}</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">${present}</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;color:#d97706">${late}</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;color:#ef4444">${absent2}</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:900;color:${rate>=90?'#22c55e':rate>=70?'#d97706':'#ef4444'}">${rate}%</td></tr>`;
+                  }).join('');
+
+                  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>학습 종합 리포트</title>
+                  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;padding:24px;color:#1e293b;font-size:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+                  h1{font-size:20px;font-weight:900;color:#1d4ed8;margin-bottom:4px}.meta{font-size:11px;color:#94a3b8;margin-bottom:20px}
+                  .section{margin-bottom:28px;page-break-inside:avoid}.section-title{font-size:11px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid #f1f5f9}
+                  table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f8fafc;padding:7px 8px;font-weight:900;text-align:center;border:1px solid #e2e8f0}
+                  tbody tr:nth-child(even) td{background:#f8fafc}@media print{body{padding:10px}tr{page-break-inside:avoid}}</style></head><body>
+                  <h1>📊 ${siteTitle} 학습 종합 리포트</h1>
+                  <p class="meta">출력일: ${now} · 기간: ${fromDate||'전체'} ~ ${toDate||'전체'} · 학생 ${students.length}명</p>
+                  ${sortedTests2.length ? `<div class="section"><div class="section-title">🏆 시험 성적</div>
+                  <table><thead><tr><th style="border:1px solid #e2e8f0">이름</th>${thds}<th style="background:#fff7ed;color:#ea580c;border:1px solid #e2e8f0">평균</th><th style="background:#fef2f2;color:#ef4444;border:1px solid #e2e8f0">취약 단원</th></tr></thead>
+                  <tbody>${studentRows}</tbody><tfoot><tr><td style="padding:7px 8px;font-weight:900;background:#fff7ed;border:1px solid #e2e8f0">반 평균</td>${avgs}<td colspan="2" style="background:#fff7ed;border:1px solid #e2e8f0"></td></tr></tfoot></table></div>` : ''}
+                  ${rangedAssign.length ? `<div class="section"><div class="section-title">📋 과제 현황</div>
+                  <table><thead><tr><th style="border:1px solid #e2e8f0">과목</th><th style="border:1px solid #e2e8f0">과제명</th><th style="border:1px solid #e2e8f0">완료율</th><th style="border:1px solid #e2e8f0">미완료 학생</th></tr></thead><tbody>${assignRows}</tbody></table></div>` : ''}
+                  ${attDates.length ? `<div class="section"><div class="section-title">📅 출결 현황</div>
+                  <table><thead><tr><th style="border:1px solid #e2e8f0">이름</th><th style="border:1px solid #e2e8f0">출석</th><th style="border:1px solid #e2e8f0">지각</th><th style="border:1px solid #e2e8f0">결석</th><th style="border:1px solid #e2e8f0">출석률</th></tr></thead><tbody>${attRows}</tbody></table></div>` : ''}
+                  ${rangedPlans.length ? `<div class="section"><div class="section-title">📈 진도 현황</div>
+                  <table><thead><tr><th style="border:1px solid #e2e8f0">날짜</th><th style="border:1px solid #e2e8f0">유형</th><th style="border:1px solid #e2e8f0">과목</th><th style="border:1px solid #e2e8f0">내용</th><th style="border:1px solid #e2e8f0">완료</th></tr></thead><tbody>${planRows}</tbody></table></div>` : ''}
+                  <script>window.onload=function(){window.print();window.close();};<\/script></body></html>`);
+                  win.document.close();
+                };
+
                 return (
-                  <div className="space-y-4">
-                    {/* 헤더 카드 */}
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="font-black text-slate-800 flex items-center gap-2"><Printer size={16}/>생성된 리포트</p>
-                        <div className="flex gap-2">
-                          <button onClick={()=>navigator.clipboard.writeText(reportText)} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl font-black text-xs flex items-center gap-1"><Copy size={12}/>텍스트 복사</button>
-                          {!aiLoading && !aiAnalysis && (
-                            <button onClick={requestAiAnalysis} className="px-3 py-1.5 text-white rounded-xl font-black text-xs flex items-center gap-1 shadow-sm" style={{background:'var(--sc)'}}><Sparkles size={12}/>AI 분석</button>
-                          )}
+                  <div className="space-y-5">
+                    {/* 날짜 범위 */}
+                    <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
+                      <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Printer size={20}/> 리포트 생성</h2>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 mb-2">시작일</p>
+                          <input type="date" value={reportRange.from} onChange={e=>setReportRange(p=>({...p,from:e.target.value}))} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 transition-all text-slate-800"/>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 mb-2">종료일</p>
+                          <input type="date" value={reportRange.to} onChange={e=>setReportRange(p=>({...p,to:e.target.value}))} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 transition-all text-slate-800"/>
                         </div>
                       </div>
-                      {headerLines.map((l,i)=>(
-                        <p key={i} className="text-xs text-slate-500 font-medium leading-relaxed">{l}</p>
-                      ))}
+                      <div className="flex flex-wrap gap-2 mb-5">
+                        {[
+                          {l:'이번 주', fn:()=>{const d=new Date(Date.now()+9*60*60*1000);const day=d.getDay();const mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));const sun=new Date(mon);sun.setDate(mon.getDate()+6);setReportRange({from:mon.toISOString().split('T')[0],to:sun.toISOString().split('T')[0]});}},
+                          {l:'이번 달', fn:()=>{const d=new Date(Date.now()+9*60*60*1000);const y=d.getFullYear();const m=d.getMonth();const last=new Date(y,m+1,0);setReportRange({from:`${y}-${String(m+1).padStart(2,'0')}-01`,to:last.toISOString().split('T')[0]});}},
+                          {l:'지난 달', fn:()=>{const d=new Date(Date.now()+9*60*60*1000);const y=d.getMonth()===0?d.getFullYear()-1:d.getFullYear();const m=d.getMonth()===0?12:d.getMonth();const last=new Date(y,m,0);setReportRange({from:`${y}-${String(m).padStart(2,'0')}-01`,to:last.toISOString().split('T')[0]});}},
+                          {l:'전체', fn:()=>setReportRange({from:'',to:''})},
+                        ].map(btn=>(
+                          <button key={btn.l} onClick={btn.fn} className="px-3 py-1.5 rounded-xl text-xs font-black border border-slate-200 bg-slate-50 text-slate-500 hover:border-blue-400 hover:text-blue-500 transition-all">{btn.l}</button>
+                        ))}
+                      </div>
+                      {/* 달력 */}
+                      <p className="text-[10px] font-black text-slate-400 mb-2 flex items-center gap-1"><Calendar size={11}/> 달력 날짜 클릭으로 범위 선택 <span className="text-slate-300 font-medium">(첫 클릭: 시작일 · 두 번째: 종료일)</span></p>
+                      <ProgressMiniCalendar
+                        progressPlans={progressPlans}
+                        progressCalMonth={progressCalMonth}
+                        setProgressCalMonth={setProgressCalMonth}
+                        kstToday={kstToday}
+                        attendance={attendance}
+                        students={students}
+                        makeupDates={makeupDates}
+                        onDateSelect={(date) => {
+                          if (!reportRange.from || (reportRange.from && reportRange.to)) {
+                            setReportRange({from:date, to:''});
+                          } else {
+                            if (date >= reportRange.from) setReportRange(p=>({...p,to:date}));
+                            else setReportRange({from:date, to:reportRange.from});
+                          }
+                        }}
+                      />
+                      {(reportRange.from || reportRange.to) && (
+                        <div className="mt-2 px-4 py-2 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-2">
+                          <Calendar size={12} className="text-blue-400"/>
+                          <span className="text-xs font-black text-blue-600">{reportRange.from||'시작일 미설정'} ~ {reportRange.to||'종료일 미설정'}</span>
+                          <button onClick={()=>setReportRange({from:'',to:''})} className="ml-auto text-blue-300 hover:text-blue-500 font-black text-sm">×</button>
+                        </div>
+                      )}
                     </div>
 
-                    {/* 섹션별 카드 */}
-                    {sections.map((sec,si)=>(
-                      <div key={si} className={`rounded-3xl border shadow-sm overflow-hidden ${sec.color}`}>
-                        <div className={`px-5 py-3 flex items-center gap-2 border-b ${sec.color}`}>
-                          <span className="text-base">{sec.icon}</span>
-                          <p className={`font-black text-sm ${sec.titleColor}`}>{sec.key}</p>
+                    {/* 시험 선택 */}
+                    {tests.length > 0 && (
+                      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+                        <p className="font-black text-slate-800 text-sm mb-3 flex items-center gap-2"><Trophy size={15} className="text-orange-500"/> 포함할 시험 선택 <span className="text-[10px] font-medium text-slate-400">(미선택 시 전체)</span></p>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {tests.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(t=>(
+                            <button key={t.id} onClick={()=>setSelectedReportTests(p=>({...p,[t.id]:!p[t.id]}))}
+                              className={`px-3 py-1.5 rounded-xl text-[11px] font-black border-2 transition-all ${selectedReportTests[t.id]?'bg-orange-500 border-orange-500 text-white shadow-sm':'bg-white border-slate-200 text-slate-500 hover:border-orange-300'}`}>
+                              {t.title} <span className="opacity-60 font-medium">{t.date}</span>
+                            </button>
+                          ))}
                         </div>
-                        <div className="bg-white px-5 py-4 space-y-1.5">
-                          {sec.lines.map((line,li)=>{
-                            const isWarn = line.includes('⚠');
-                            const isBullet = line.trim().startsWith('•');
-                            const isSubItem = line.startsWith('    ');
-                            const isTotal = line.includes('완료:') || line.includes('출석률') || line.includes('수업 진행') || line.includes('평균');
-                            return (
-                              <div key={li} className={`
-                                ${isWarn ? 'flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 rounded-xl border border-red-100' : ''}
-                                ${isBullet && !isWarn ? 'flex items-start gap-2 px-2.5 py-2 bg-slate-50 rounded-xl border border-slate-100' : ''}
-                                ${isSubItem && !isWarn ? 'pl-6' : ''}
-                              `}>
-                                {isWarn && <span className="text-red-400 shrink-0 text-xs">⚠</span>}
-                                {isBullet && !isWarn && <span className="text-slate-400 shrink-0 mt-0.5 text-xs">•</span>}
-                                <p className={`text-xs leading-relaxed break-keep
-                                  ${isWarn ? 'text-red-600 font-black' : ''}
-                                  ${isTotal ? 'font-black text-slate-700' : 'font-medium text-slate-600'}
-                                  ${isSubItem && !isWarn ? 'text-slate-500' : ''}
-                                `}>{isBullet ? line.trim().slice(1).trim() : line.trim()}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        {hasSelection && <button onClick={()=>setSelectedReportTests({})} className="text-[10px] font-black text-red-400 hover:text-red-600 transition-colors">선택 초기화</button>}
                       </div>
-                    ))}
+                    )}
 
-                    {/* AI 분석 */}
-                    {aiLoading && (
-                      <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center flex items-center justify-center gap-2 text-slate-500 font-bold shadow-sm">
-                        <Loader2 size={18} className="animate-spin" style={{color:'var(--sc)'}}/>AI 분석 중...
-                      </div>
-                    )}
-                    {aiAnalysis && !aiLoading && (
-                      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                        <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2" style={{background:'var(--sc-faint)'}}>
-                          <Bot size={16} style={{color:'var(--sc)'}}/>
-                          <p className="font-black text-sm" style={{color:'var(--sc)'}}>AI 분석 결과</p>
-                        </div>
-                        <div className="p-5">
-                          <div className="whitespace-pre-wrap text-sm text-slate-700 font-medium leading-relaxed">{aiAnalysis}</div>
-                        </div>
-                        {!aiLoading && (
-                          <div className="px-5 pb-4">
-                            <button onClick={requestAiAnalysis} className="px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl font-black text-xs flex items-center gap-1"><RefreshCw size={11}/>재분석</button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {/* 출력 버튼 */}
+                    <button onClick={printReport} className="w-full py-4 text-white rounded-2xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{background:'var(--sc)'}}>
+                      <Printer size={18}/> 리포트 출력 (새 창)
+                    </button>
                   </div>
                 );
               })()}
@@ -2862,27 +2861,93 @@ export default function App() {
                 {(regCategory==='assignment'?assignments:memoItems).map(a=>(
                   <div key={a.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                     {editItemId === a.id ? (
-                      <div className="space-y-3">
-                        <BufferedInput value={editItemData?.title||''} onSave={(v)=>setEditItemData(p=>({...p,title:v}))} className="w-full px-3 py-2 border-2 border-slate-100 rounded-xl font-bold text-sm outline-none focus:border-blue-400 bg-white text-slate-800" />
-                        <div className="flex flex-wrap gap-2">
-                          {subjects.map(sub=>(
-                            <button key={sub} onClick={()=>setEditItemData(p=>({...p,subject:sub}))}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.subject===sub?'text-white border-transparent':'border-slate-100 text-slate-400'}`}
-                              style={editItemData?.subject===sub?{background:'var(--sc)'}:{}}>{sub}</button>
-                          ))}
+                      <div className="space-y-3 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                        {/* 제목 */}
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">제목</p>
+                          <BufferedInput value={editItemData?.title||''} onSave={(v)=>setEditItemData(p=>({...p,title:v}))} className="w-full px-3 py-2.5 border-2 border-white rounded-xl font-bold text-sm outline-none focus:border-blue-400 bg-white text-slate-800" />
                         </div>
-                        {regCategory === 'memorization' && memoSections.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            <button onClick={()=>setEditItemData(p=>({...p,memoSection:''}))} className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${!editItemData?.memoSection?'bg-purple-600 border-purple-600 text-white':'border-slate-100 text-slate-400'}`}>영역 없음</button>
-                            {memoSections.map(sec=>(
-                              <button key={sec} onClick={()=>setEditItemData(p=>({...p,memoSection:sec}))}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.memoSection===sec?'bg-purple-600 border-purple-600 text-white':'border-slate-100 text-slate-400'}`}>{sec}</button>
+
+                        {/* 과목 */}
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">과목</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {subjects.map(sub=>(
+                              <button key={sub} onClick={()=>setEditItemData(p=>({...p,subject:sub}))}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.subject===sub?'text-white border-transparent':'border-slate-200 text-slate-400 bg-white'}`}
+                                style={editItemData?.subject===sub?{background:'var(--sc)'}:{}}>{sub}</button>
                             ))}
                           </div>
+                        </div>
+
+                        {/* 난이도 (과제만) */}
+                        {editItemData?.category === 'assignment' && (
+                          <div>
+                            <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">난이도</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {ASSIGNMENT_LEVELS.map(lv=>(
+                                <button key={lv} onClick={()=>setEditItemData(p=>({...p,level:lv}))}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.level===lv?'bg-amber-500 border-amber-500 text-white':'border-slate-200 text-slate-400 bg-white'}`}>{lv}</button>
+                              ))}
+                            </div>
+                          </div>
                         )}
-                        <div className="flex gap-2">
-                          <button onClick={()=>setEditItemId(null)} className="flex-1 py-2 bg-slate-100 text-slate-500 rounded-xl font-black text-sm">취소</button>
-                          <button onClick={saveEditItem} className="flex-1 py-2 text-white rounded-xl font-black text-sm shadow-sm" style={{background:'var(--sc)'}}>저장</button>
+
+                        {/* 마감일 (과제만) */}
+                        {editItemData?.category === 'assignment' && (
+                          <div>
+                            <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">마감일</p>
+                            <input type="date" value={editItemData?.deadline||''} onChange={e=>setEditItemData(p=>({...p,deadline:e.target.value}))}
+                              className="px-3 py-2 bg-white border-2 border-slate-200 rounded-xl font-bold text-sm outline-none focus:border-blue-400 text-slate-800"/>
+                            {editItemData?.deadline && <button onClick={()=>setEditItemData(p=>({...p,deadline:''}))} className="ml-2 text-xs text-red-400 font-black">× 제거</button>}
+                          </div>
+                        )}
+
+                        {/* 암기 영역 (암기만) */}
+                        {editItemData?.category === 'memorization' && memoSections.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">암기 영역</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button onClick={()=>setEditItemData(p=>({...p,memoSection:''}))}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${!editItemData?.memoSection?'bg-purple-600 border-purple-600 text-white':'border-slate-200 text-slate-400 bg-white'}`}>영역 없음</button>
+                              {memoSections.map(sec=>(
+                                <button key={sec} onClick={()=>setEditItemData(p=>({...p,memoSection:sec}))}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.memoSection===sec?'bg-purple-600 border-purple-600 text-white':'border-slate-200 text-slate-400 bg-white'}`}>{sec}</button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 대상 학생 */}
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">대상 학생</p>
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            <button onClick={()=>setEditItemData(p=>({...p,type:'all',targetStudents:[]}))}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.type==='all'?'bg-slate-600 border-slate-600 text-white':'border-slate-200 text-slate-400 bg-white'}`}>전체</button>
+                            <button onClick={()=>setEditItemData(p=>({...p,type:'specific',targetStudents:p.targetStudents||[]}))}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${editItemData?.type==='specific'?'bg-blue-500 border-blue-500 text-white':'border-slate-200 text-slate-400 bg-white'}`}>개별 선택</button>
+                          </div>
+                          {editItemData?.type === 'specific' && (
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {students.map(s=>{
+                                const sel = (editItemData?.targetStudents||[]).includes(s.id);
+                                return (
+                                  <button key={s.id} onClick={()=>setEditItemData(p=>({
+                                    ...p,
+                                    targetStudents: sel
+                                      ? (p.targetStudents||[]).filter(id=>id!==s.id)
+                                      : [...(p.targetStudents||[]),s.id]
+                                  }))} className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${sel?'text-white border-transparent':'border-slate-200 text-slate-400 bg-white'}`}
+                                  style={sel?{background:'var(--sc)'}:{}}>{s.name}</button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={()=>setEditItemId(null)} className="flex-1 py-2.5 bg-slate-200 text-slate-500 rounded-xl font-black text-sm">취소</button>
+                          <button onClick={saveEditItem} className="flex-1 py-2.5 text-white rounded-xl font-black text-sm shadow-sm" style={{background:'var(--sc)'}}>저장</button>
                         </div>
                       </div>
                     ) : (
