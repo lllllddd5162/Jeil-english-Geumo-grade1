@@ -16,7 +16,7 @@ import {
   onAuthStateChanged
 } from 'firebase/auth';
 import {
-  Users, BookOpen, CheckCircle2, Circle, Clock, Plus, Trash2, BarChart3,
+  Users, BookOpen, Layers, CheckCircle2, Circle, Clock, Plus, Trash2, BarChart3,
   Trophy, ClipboardCheck, Calculator, Calendar,
   MessageSquare, Search, AlertCircle, X as LucideX, History,
   Edit2, Layers, UserPlus, Info, ListChecks,
@@ -600,6 +600,9 @@ export default function App() {
   const [regCategory, setRegCategory] = useState('assignment');
   // subject 빈값으로 초기화 (과목 미선택 방지)
   const [newAssignment, setNewAssignment] = useState({ title: '', subject: '', level: '기본', type: 'all', targetStudents: [], deadline: '', memoSection: '' });
+  const [templates, setTemplates] = useState([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [newTemplate, setNewTemplate] = useState({ name: '', category: 'memorization', subject: '', memoSection: '', items: [''] });
   const [editItemId, setEditItemId] = useState(null);
   const [editItemData, setEditItemData] = useState(null);
 
@@ -807,7 +810,40 @@ export default function App() {
     const list = regCategory === 'assignment' ? assignments : memoItems;
     const sortOrder = list.length > 0 ? Math.max(...list.map(x => x.sortOrder || 0)) + 1 : 0;
     await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', coll, id), { ...newAssignment, sortOrder, category: regCategory });
-    setNewAssignment(prev => ({ ...prev, title: '', subject: '', memoSection: '' }));
+    setNewAssignment(prev => ({ ...prev, title: '' }));
+  };
+
+  const saveTemplate = async () => {
+    if (userRole !== 'master') return;
+    if (!newTemplate.name.trim()) { alert('템플릿 이름을 입력해주세요.'); return; }
+    const validItems = newTemplate.items.filter(i => i.trim());
+    if (!validItems.length) { alert('항목을 1개 이상 입력해주세요.'); return; }
+    const id = 'tpl' + Date.now();
+    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'templates', id), {
+      ...newTemplate, items: validItems
+    });
+    setShowTemplateModal(false);
+    setNewTemplate({ name: '', category: 'memorization', subject: '', memoSection: '', items: [''] });
+  };
+
+  const deleteTemplate = async (id) => {
+    if (userRole !== 'master') return;
+    await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'templates', id));
+  };
+
+  const applyTemplate = async (tpl) => {
+    if (userRole !== 'master') return;
+    const coll = tpl.category === 'assignment' ? 'assignments' : 'memoItems';
+    const list = tpl.category === 'assignment' ? assignments : memoItems;
+    let sortOrder = list.length > 0 ? Math.max(...list.map(x => x.sortOrder || 0)) + 1 : 0;
+    for (const title of tpl.items) {
+      const id = (tpl.category === 'assignment' ? 'a' : 'm') + Date.now() + Math.random().toString(36).slice(2,6);
+      await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', coll, id), {
+        title, subject: tpl.subject || '', level: '기본',
+        memoSection: tpl.memoSection || '', type: 'all', targetStudents: [],
+        sortOrder: sortOrder++, category: tpl.category
+      });
+    }
   };
 
   const addTest = async () => {
@@ -3384,6 +3420,89 @@ export default function App() {
                   <button onClick={()=>setSelectedTest(null)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm">취소</button>
                   <button onClick={updateTestDetails} className="flex-2 px-8 py-3 text-white rounded-2xl font-black text-sm shadow-lg transition-all active:scale-95" style={{background:'var(--sc)'}}>저장</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 템플릿 추가 모달 */}
+        {showTemplateModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={()=>setShowTemplateModal(false)}>
+            <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden" onClick={e=>e.stopPropagation()}>
+              <div className="p-6 text-white flex justify-between items-center" style={{background:'var(--sc-darker)'}}>
+                <h2 className="text-lg font-black flex items-center gap-2"><Layers size={18}/> 템플릿 추가</h2>
+                <button onClick={()=>setShowTemplateModal(false)} className="p-1 hover:bg-white/10 rounded-full"><LucideX size={18}/></button>
+              </div>
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                {/* 템플릿 이름 */}
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">템플릿 이름</p>
+                  <input value={newTemplate.name} onChange={e=>setNewTemplate(p=>({...p,name:e.target.value}))}
+                    placeholder="예: 본문학습, 어휘테스트..." className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-slate-800 text-sm"/>
+                </div>
+                {/* 카테고리 */}
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">종류</p>
+                  <div className="flex gap-2">
+                    {[{v:'memorization',l:'암기'},{v:'assignment',l:'과제'}].map(c=>(
+                      <button key={c.v} onClick={()=>setNewTemplate(p=>({...p,category:c.v}))}
+                        className={`flex-1 py-2.5 rounded-2xl text-sm font-black border-2 transition ${newTemplate.category===c.v?'bg-indigo-600 border-indigo-600 text-white':'bg-white border-slate-100 text-slate-400'}`}>{c.l}</button>
+                    ))}
+                  </div>
+                </div>
+                {/* 과목 */}
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">과목 (선택)</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button onClick={()=>setNewTemplate(p=>({...p,subject:''}))}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${!newTemplate.subject?'text-white border-transparent':'border-slate-200 text-slate-400'}`}
+                      style={!newTemplate.subject?{background:'var(--sc)'}:{}}>없음</button>
+                    {subjects.map(sub=>(
+                      <button key={sub} onClick={()=>setNewTemplate(p=>({...p,subject:sub}))}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${newTemplate.subject===sub?'text-white border-transparent':'border-slate-200 text-slate-400'}`}
+                        style={newTemplate.subject===sub?{background:'var(--sc)'}:{}}>{sub}</button>
+                    ))}
+                  </div>
+                </div>
+                {/* 암기 영역 */}
+                {newTemplate.category==='memorization' && memoSections.length>0 && (
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">암기 영역 (선택)</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button onClick={()=>setNewTemplate(p=>({...p,memoSection:''}))}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${!newTemplate.memoSection?'bg-purple-600 border-purple-600 text-white':'border-slate-200 text-slate-400'}`}>없음</button>
+                      {memoSections.map(sec=>(
+                        <button key={sec} onClick={()=>setNewTemplate(p=>({...p,memoSection:sec}))}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${newTemplate.memoSection===sec?'bg-purple-600 border-purple-600 text-white':'border-slate-200 text-slate-400'}`}>{sec}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* 항목 목록 */}
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">항목 목록 (순서대로)</p>
+                  <div className="space-y-2">
+                    {newTemplate.items.map((item,i)=>(
+                      <div key={i} className="flex gap-2 items-center">
+                        <span className="text-[10px] font-black text-slate-300 w-5 text-center">{i+1}</span>
+                        <input value={item} onChange={e=>{const arr=[...newTemplate.items];arr[i]=e.target.value;setNewTemplate(p=>({...p,items:arr}));}}
+                          onKeyDown={e=>{if(e.key==='Enter'){const arr=[...newTemplate.items];arr.splice(i+1,0,'');setNewTemplate(p=>({...p,items:arr}));}}}
+                          placeholder={`항목 ${i+1}`} className="flex-1 px-3 py-2 bg-slate-50 border-2 border-transparent rounded-xl font-bold outline-none focus:border-indigo-400 text-slate-800 text-sm"/>
+                        {newTemplate.items.length>1 && (
+                          <button onClick={()=>{const arr=newTemplate.items.filter((_,j)=>j!==i);setNewTemplate(p=>({...p,items:arr}));}}
+                            className="p-1.5 text-red-300 hover:text-red-500 rounded-lg transition"><LucideX size={13}/></button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={()=>setNewTemplate(p=>({...p,items:[...p.items,'']}))}
+                      className="w-full py-2 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 text-xs font-black hover:border-indigo-300 hover:text-indigo-400 transition-all flex items-center justify-center gap-1">
+                      <Plus size={12}/> 항목 추가 (또는 Enter)
+                    </button>
+                  </div>
+                </div>
+                <button onClick={saveTemplate} className="w-full py-4 text-white rounded-2xl font-black shadow-lg transition-all active:scale-95" style={{background:'var(--sc)'}}>
+                  템플릿 저장
+                </button>
               </div>
             </div>
           </div>
