@@ -2809,6 +2809,22 @@ export default function App() {
                     </div>
                   </div>
                   <div className="space-y-6">
+                    {/* 템플릿 일괄 등록 */}
+                    {templates.filter(t=>t.category===regCategory).length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 mb-2 uppercase flex items-center gap-1"><Layers size={12}/> 템플릿으로 일괄 등록</p>
+                        <div className="flex flex-wrap gap-2">
+                          {templates.filter(t=>t.category===regCategory).map(tpl=>(
+                            <button key={tpl.id} onClick={()=>applyTemplate(tpl)}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-black border-2 border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all">
+                              <Layers size={11}/> {tpl.name}
+                              <span className="text-[9px] opacity-60">({tpl.items.length}개)</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* 과목 선택 */}
                     <div>
                       <p className="text-[10px] font-black text-slate-400 mb-3 uppercase flex items-center gap-1"><Tag size={12}/> 1. 과목
@@ -3200,6 +3216,45 @@ export default function App() {
                     })}
                   </div>
                 </div>
+              </div>
+
+              {/* 항목 모음 템플릿 관리 */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-black text-slate-800 flex items-center gap-2"><Layers size={18} className="text-indigo-500"/> 항목 모음 (템플릿)</h2>
+                  <button onClick={()=>setShowTemplateModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-white shadow-sm"
+                    style={{background:'var(--sc)'}}>
+                    <Plus size={12}/> 템플릿 추가
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 font-medium mb-4">자주 쓰는 항목 묶음을 저장해두면 한 번에 일괄 등록할 수 있어요.</p>
+                {templates.length === 0 ? (
+                  <p className="text-sm text-slate-400 font-bold text-center py-6">등록된 템플릿이 없습니다</p>
+                ) : (
+                  <div className="space-y-3">
+                    {templates.map(tpl=>(
+                      <div key={tpl.id} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-black text-slate-700 text-sm">{tpl.name}</span>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${tpl.category==='assignment'?'bg-blue-100 text-blue-600':'bg-purple-100 text-purple-600'}`}>
+                              {tpl.category==='assignment'?'과제':'암기'}
+                            </span>
+                            {tpl.subject && <span className="text-[10px] font-bold text-slate-400">{tpl.subject}</span>}
+                            {tpl.memoSection && <span className="text-[10px] font-bold text-slate-400">[{tpl.memoSection}]</span>}
+                          </div>
+                          <button onClick={()=>deleteTemplate(tpl.id)} className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={13}/></button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(tpl.items||[]).map((item,i)=>(
+                            <span key={i} className="text-[11px] font-bold px-2 py-1 bg-white rounded-lg border border-slate-200 text-slate-600">{i+1}. {item}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* 마스터 코드 변경 */}
