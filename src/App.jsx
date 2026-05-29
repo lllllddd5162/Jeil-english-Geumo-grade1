@@ -1839,18 +1839,32 @@ export default function App() {
                                       {wrong!=null && !passed && (
                                         <div className="space-y-1 pt-1 border-t border-slate-100">
                                           <p className="text-[9px] font-black text-purple-500">재시험</p>
+                                          {/* 응시 여부 토글 */}
                                           <div className="flex items-center gap-1 justify-center">
-                                            <input type="number" min="0" max={vt.totalWords} value={retryWrong??''}
-                                              onChange={async e=>{
-                                                const v=e.target.value===''?null:parseInt(e.target.value);
-                                                await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),{retryWrong:v},{merge:true});
-                                              }}
-                                              placeholder="-" className="w-12 px-1.5 py-1 bg-purple-50 border border-purple-200 rounded-lg text-center font-black outline-none focus:border-purple-400 text-xs"/>
-                                            <span className="text-[9px] text-slate-400">틀림</span>
+                                            <button onClick={async()=>{
+                                              const cur = sc.retryAttended;
+                                              await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),{retryAttended: cur?false:true, retryWrong: cur?null:sc.retryWrong??null},{merge:true});
+                                            }} className={`px-2 py-0.5 rounded-lg text-[10px] font-black border transition-all ${sc.retryAttended?'bg-purple-500 border-purple-500 text-white':'bg-white border-slate-200 text-slate-400 hover:border-purple-300'}`}>
+                                              {sc.retryAttended ? '✓ 응시' : '미응시'}
+                                            </button>
                                           </div>
-                                          {retryWrong!=null && (
-                                            <div className={`text-[10px] font-black px-2 py-0.5 rounded-full inline-block ${retryPassed?'bg-emerald-100 text-emerald-600':'bg-red-100 text-red-500'}`}>
-                                              재시험 {retryPassed?'✓ 통과':'✗ 미통과'}
+                                          {/* 응시한 경우에만 틀린 개수 입력 */}
+                                          {sc.retryAttended && (
+                                            <div className="space-y-1">
+                                              <div className="flex items-center gap-1 justify-center">
+                                                <input type="number" min="0" max={vt.totalWords} value={retryWrong??''}
+                                                  onChange={async e=>{
+                                                    const v=e.target.value===''?null:parseInt(e.target.value);
+                                                    await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),{retryWrong:v},{merge:true});
+                                                  }}
+                                                  placeholder="-" className="w-12 px-1.5 py-1 bg-purple-50 border border-purple-200 rounded-lg text-center font-black outline-none focus:border-purple-400 text-xs"/>
+                                                <span className="text-[9px] text-slate-400">틀림</span>
+                                              </div>
+                                              {retryWrong!=null && (
+                                                <div className={`text-[10px] font-black px-2 py-0.5 rounded-full inline-block ${retryPassed?'bg-emerald-100 text-emerald-600':'bg-red-100 text-red-500'}`}>
+                                                  재시험 {retryPassed?'✓ 통과':'✗ 미통과'}
+                                                </div>
+                                              )}
                                             </div>
                                           )}
                                         </div>
@@ -1864,10 +1878,18 @@ export default function App() {
                                             {passed?'✓ 합격':'✗ 불합격'}
                                           </div>
                                           <p className="text-[10px] text-slate-500 font-bold">{correct}/{vt.totalWords}</p>
-                                          {!passed && retryWrong!=null && (
-                                            <div className={`text-[9px] font-black px-1.5 py-0.5 rounded-full inline-block ${retryPassed?'bg-purple-100 text-purple-600':'bg-slate-100 text-slate-400'}`}>
-                                              재시험 {retryPassed?'통과':'미통과'}
-                                            </div>
+                                          {!passed && (
+                                            sc.retryAttended ? (
+                                              retryWrong!=null ? (
+                                                <div className={`text-[9px] font-black px-1.5 py-0.5 rounded-full inline-block ${retryPassed?'bg-purple-100 text-purple-600':'bg-red-100 text-red-400'}`}>
+                                                  재시험 {retryPassed?'통과':'미통과'}
+                                                </div>
+                                              ) : (
+                                                <div className="text-[9px] font-black px-1.5 py-0.5 rounded-full inline-block bg-purple-50 text-purple-400">재시험 응시</div>
+                                              )
+                                            ) : (
+                                              <div className="text-[9px] font-black px-1.5 py-0.5 rounded-full inline-block bg-slate-100 text-slate-400">재시험 미응시</div>
+                                            )
                                           )}
                                         </>
                                       ) : <span className="text-slate-300 font-bold">-</span>}
