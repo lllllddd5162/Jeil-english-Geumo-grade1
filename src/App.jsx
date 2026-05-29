@@ -814,17 +814,20 @@ export default function App() {
   };
 
   const saveTemplate = async () => {
-    if (userRole !== 'master') return;
     if (!newTemplate.name.trim()) { alert('템플릿 이름을 입력해주세요.'); return; }
     const validItems = newTemplate.items.filter(i => i.trim());
     if (!validItems.length) { alert('항목을 1개 이상 입력해주세요.'); return; }
-    const id = 'tpl' + Date.now();
-    const tplRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'templates', id);
-    await setDoc(tplRef, {
-      name: newTemplate.name, category: newTemplate.category, items: validItems
-    });
-    setShowTemplateModal(false);
-    setNewTemplate({ name: '', category: 'memorization', items: [''] });
+    try {
+      const id = 'tpl' + Date.now();
+      await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'templates', id), {
+        name: newTemplate.name, category: newTemplate.category, items: validItems
+      });
+      setShowTemplateModal(false);
+      setNewTemplate({ name: '', category: 'memorization', items: [''] });
+      alert('"' + newTemplate.name + '" 템플릿이 저장됐습니다!');
+    } catch(e) {
+      alert('저장 실패: ' + e.message);
+    }
   };
 
   const deleteTemplate = async (id) => {
@@ -3484,7 +3487,7 @@ export default function App() {
 
         {/* 템플릿 추가 모달 */}
         {showTemplateModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={()=>setShowTemplateModal(false)}>
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={()=>setShowTemplateModal(false)}>
             <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden" onClick={e=>e.stopPropagation()}>
               <div className="p-6 text-white flex justify-between items-center" style={{background:'var(--sc-darker)'}}>
                 <h2 className="text-lg font-black flex items-center gap-2"><Layers size={18}/> 템플릿 추가</h2>
