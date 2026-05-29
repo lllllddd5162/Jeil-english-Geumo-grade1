@@ -621,6 +621,7 @@ export default function App() {
   const [editVocabTest, setEditVocabTest] = useState(null);
   const [vocabSections, setVocabSections] = useState([]);
   const [newVocabSection, setNewVocabSection] = useState('');
+  const [activeVocabSections, setActiveVocabSections] = useState([]);
   const [isTestEditMode, setIsTestEditMode] = useState(false);
   const [testSectionCollapsed, setTestSectionCollapsed] = useState({ main: false, mini: false });
   const [selectedReportTests, setSelectedReportTests] = useState({});
@@ -1835,12 +1836,37 @@ export default function App() {
                 <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-slate-400 font-bold shadow-sm">등록된 단어 시험이 없습니다.</div>
               ) : (
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  {/* 영역 토글 필터 */}
+                  {vocabSections.length > 0 && (
+                    <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap gap-2 items-center">
+                      <span className="text-[10px] font-black text-slate-400 uppercase">영역 필터</span>
+                      <button onClick={()=>setActiveVocabSections([])}
+                        className={`px-3 py-1 rounded-full text-[11px] font-black border transition-all ${activeVocabSections.length===0?'bg-slate-700 border-slate-700 text-white':'bg-white border-slate-200 text-slate-400 hover:border-slate-400'}`}>
+                        전체
+                      </button>
+                      {vocabSections.map(sec=>{
+                        const active = activeVocabSections.includes(sec.id);
+                        return (
+                          <button key={sec.id} onClick={()=>setActiveVocabSections(p=>
+                            active ? p.filter(id=>id!==sec.id) : [...p,sec.id]
+                          )} className={`px-3 py-1 rounded-full text-[11px] font-black border transition-all ${active?'text-white border-transparent':'bg-white border-slate-200 text-slate-500 hover:border-blue-300'}`}
+                          style={active?{background:'var(--sc)'}:{}}>
+                            {sec.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div className="overflow-x-auto">
+                    {(() => {
+                      const filteredVT = activeVocabSections.length === 0 ? vocabTests :
+                        vocabTests.filter(vt=>(vt.sectionIds||[]).some(id=>activeVocabSections.includes(id)));
+                      return (
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-slate-100">
                           <th className="px-4 py-3 text-left font-black text-slate-600 bg-slate-50 sticky left-0 min-w-[80px]">학생</th>
-                          {vocabTests.map(vt=>(
+                          {filteredVT.map(vt=>(
                             <th key={vt.id} className="px-3 py-2 text-center min-w-[130px] border-l border-slate-100">
                               <p className="font-black text-slate-700">{vt.title}</p>
                               <p className="font-medium text-slate-400 text-[10px]">{vt.date} · {vt.totalWords}개</p>
@@ -1869,7 +1895,7 @@ export default function App() {
                         {visibleStudentsFiltered.map(s=>(
                           <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                             <td className="px-4 py-3 font-black text-slate-700 sticky left-0 bg-white">{s.name}</td>
-                            {vocabTests.map(vt=>{
+                            {filteredVT.map(vt=>{
                               const key=s.id+'-'+vt.id;
                               const sc=vocabScores[key]||{};
                               const effectiveCut=sc.customCut!=null?sc.customCut:vt.passCut;
@@ -1879,9 +1905,9 @@ export default function App() {
                               const retryWrong=sc.retryWrong!=null?sc.retryWrong:null;
                               const retryPassed=retryWrong!=null?retryWrong<=effectiveCut:null;
                               return (
-                                <td key={vt.id} className="px-3 py-2 text-center border-l border-slate-100 align-top">
+                                <td key={vt.id} className="px-3 py-2 border-l border-slate-100 align-middle">
                                   {userRole==='master' ? (
-                                    <div className="space-y-1.5 py-1">
+                                    <div className="space-y-1.5 py-1 flex flex-col items-center">
                                       {/* 섹션별 or 전체 틀린 개수 */}
                                       {(vt.sectionIds||[]).length > 0 ? (
                                         <div className="space-y-1">
@@ -1971,7 +1997,7 @@ export default function App() {
                                       )}
                                     </div>
                                   ) : (
-                                    <div className="space-y-1 py-1">
+                                    <div className="space-y-1 py-1 flex flex-col items-center">
                                       {wrong!=null ? (
                                         <>
                                           <div className={`text-[11px] font-black px-2 py-1 rounded-full inline-block ${passed?'bg-emerald-100 text-emerald-600':'bg-red-100 text-red-500'}`}>
@@ -2001,7 +2027,7 @@ export default function App() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </table>);})()} 
                   </div>
                 </div>
               )}
@@ -2318,7 +2344,7 @@ export default function App() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </table>);})()} 
                   </div>
                 </div>
               )}
