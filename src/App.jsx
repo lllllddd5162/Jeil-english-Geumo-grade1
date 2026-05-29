@@ -17,7 +17,7 @@ import {
 } from 'firebase/auth';
 import {
   Users, BookOpen, CheckCircle2, Circle, Clock, Plus, Trash2, BarChart3,
-  Trophy, BookMarked, ClipboardCheck, Calculator, Calendar,
+  Trophy, ClipboardCheck, Calculator, Calendar,
   MessageSquare, Search, AlertCircle, X as LucideX, History,
   Edit2, Layers, UserPlus, Info, ListChecks,
   StickyNote, Bookmark, UserCheck, MinusCircle,
