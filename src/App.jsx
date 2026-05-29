@@ -1922,8 +1922,7 @@ export default function App() {
                                             const sw = sc['secWrong_'+si]??null;
                                             return (
                                               <div key={si} className="flex items-center gap-1">
-                                                <span className="text-[9px] font-black text-blue-500 whitespace-nowrap">{sec.name}</span>
-                                                <span className="text-[9px] text-slate-300">틀림</span>
+                                                <span className="text-[9px] font-black text-blue-500 whitespace-nowrap">{sec.name} 틀린 단어 수</span>
                                                 <input type="number" min="0" max={sec.words||vt.totalWords} value={sw??''}
                                                   onChange={async e=>{
                                                     const v=e.target.value===''?null:parseInt(e.target.value);
