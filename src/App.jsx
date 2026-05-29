@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+  import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import {
   getFirestore,
@@ -1916,7 +1916,7 @@ export default function App() {
                                             const sw = sc['secWrong_'+si]??null;
                                             return (
                                               <div key={si} className="flex items-center gap-1">
-                                                <span className="text-[9px] font-black text-blue-500 w-14 truncate">{sec.name}</span>
+                                                <span className="text-[9px] font-black text-blue-500 whitespace-nowrap">{sec.name}</span>
                                                 <input type="number" min="0" max={sec.words||vt.totalWords} value={sw??''}
                                                   onChange={async e=>{
                                                     const v=e.target.value===''?null:parseInt(e.target.value);
@@ -1924,12 +1924,12 @@ export default function App() {
                                                     // 전체 틀린 개수 자동 합산
                                                     const newSecs={...sc,...update};
                                                     let total=0;
-                                                    (vt.sections||[]).forEach((_,idx)=>{const val=newSecs['secWrong_'+idx];if(val!=null)total+=val;});
+                                                    (vt.sectionIds||[]).forEach((_,idx)=>{const val=newSecs['secWrong_'+idx];if(val!=null)total+=val;});
                                                     update.wrong=total;
                                                     await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),update,{merge:true});
                                                   }}
                                                   placeholder="-" className="w-10 px-1 py-0.5 bg-slate-50 border border-slate-200 rounded-lg text-center font-black outline-none focus:border-blue-400 text-[10px]"/>
-                                                <span className="text-[9px] text-slate-400">/{sec.words||'?'}</span>
+                                                <span className="text-[9px] text-slate-400">/{sec.words||vt.totalWords}</span>
                                               </div>
                                             );
                                           })}
