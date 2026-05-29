@@ -17,7 +17,7 @@ import {
 } from 'firebase/auth';
 import {
   Users, BookOpen, CheckCircle2, Circle, Clock, Plus, Trash2, BarChart3,
-  Trophy, ClipboardCheck, Calculator, Calendar,
+  Trophy, BookMarked, ClipboardCheck, Calculator, Calendar,
   MessageSquare, Search, AlertCircle, X as LucideX, History,
   Edit2, Layers, UserPlus, Info, ListChecks,
   StickyNote, Bookmark, UserCheck, MinusCircle,
@@ -613,6 +613,11 @@ export default function App() {
     scales: DEFAULT_GRADE_SCALES, testType: '중간 테스트', mcCount: '', saCount: ''
   });
   const [selectedTest, setSelectedTest] = useState(null);
+  // 영단어
+  const [vocabTests, setVocabTests] = useState([]);
+  const [vocabScores, setVocabScores] = useState({});
+  const [newVocabTest, setNewVocabTest] = useState({ title:'', date:'', totalWords:0, passCut:0 });
+  const [showVocabForm, setShowVocabForm] = useState(false);
   const [isTestEditMode, setIsTestEditMode] = useState(false);
   const [testSectionCollapsed, setTestSectionCollapsed] = useState({ main: false, mini: false });
   const [selectedReportTests, setSelectedReportTests] = useState({});
@@ -998,6 +1003,11 @@ export default function App() {
                 if (d.siteIconName) setSiteIconName(d.siteIconName);
                 if (d.darkMode !== undefined) setDarkMode(d.darkMode);
               }
+            }));
+            unsubscribers.push(onSnapshot(collection(db, ...basePath, 'vocabTests'), s =>
+              setVocabTests(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.date||'').localeCompare(b.date||'')))));
+            unsubscribers.push(onSnapshot(collection(db, ...basePath, 'vocabScores'), s => {
+              const m = {}; s.docs.forEach(d=>{ m[d.id]=d.data(); }); setVocabScores(m);
             }));
             unsubscribers.push(onSnapshot(collection(db, ...basePath, 'templates'), s =>
               setTemplates(s.docs.map(d => ({ id: d.id, ...d.data() })))));
