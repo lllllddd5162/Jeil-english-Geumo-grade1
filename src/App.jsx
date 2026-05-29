@@ -1,4 +1,4 @@
-  import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import {
   getFirestore,
@@ -1730,6 +1730,12 @@ export default function App() {
           {activeTab === 'vocab' && (
             <div className="max-w-5xl mx-auto space-y-6">
 
+              {/* 안내 문구 */}
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-3 flex items-center gap-2">
+                <span className="text-blue-400 text-base">📝</span>
+                <p className="text-[12px] font-bold text-blue-600">틀린 단어 수를 기입해주세요. 맞은 개수와 합격 여부가 자동으로 계산됩니다.</p>
+              </div>
+
               {/* 단어 영역 관리 (마스터) */}
               {userRole === 'master' && (
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
@@ -1917,6 +1923,7 @@ export default function App() {
                                             return (
                                               <div key={si} className="flex items-center gap-1">
                                                 <span className="text-[9px] font-black text-blue-500 whitespace-nowrap">{sec.name}</span>
+                                                <span className="text-[9px] text-slate-300">틀림</span>
                                                 <input type="number" min="0" max={sec.words||vt.totalWords} value={sw??''}
                                                   onChange={async e=>{
                                                     const v=e.target.value===''?null:parseInt(e.target.value);
@@ -1929,7 +1936,7 @@ export default function App() {
                                                     await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),update,{merge:true});
                                                   }}
                                                   placeholder="-" className="w-10 px-1 py-0.5 bg-slate-50 border border-slate-200 rounded-lg text-center font-black outline-none focus:border-blue-400 text-[10px]"/>
-                                                <span className="text-[9px] text-slate-400">/{sec.words||vt.totalWords}</span>
+                                                <span className="text-[9px] text-slate-400 whitespace-nowrap">/ {sec.words||vt.totalWords}개</span>
                                               </div>
                                             );
                                           })}
@@ -1937,13 +1944,14 @@ export default function App() {
                                         </div>
                                       ) : (
                                         <div className="flex items-center gap-1 justify-center">
+                                          <span className="text-[9px] text-slate-400 whitespace-nowrap">틀린 개수</span>
                                           <input type="number" min="0" max={vt.totalWords} value={wrong??''}
                                             onChange={async e=>{
                                               const v=e.target.value===''?null:parseInt(e.target.value);
                                               await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),{wrong:v},{merge:true});
                                             }}
                                             placeholder="-" className="w-12 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-center font-black outline-none focus:border-blue-400 text-xs"/>
-                                          <span className="text-[9px] text-slate-400">틀림</span>
+                                          <span className="text-[9px] text-slate-400 whitespace-nowrap">/ {vt.totalWords}개</span>
                                         </div>
                                       )}
                                       {wrong!=null && (
