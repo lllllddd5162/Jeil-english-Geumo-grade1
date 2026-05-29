@@ -619,6 +619,8 @@ export default function App() {
   const [newVocabTest, setNewVocabTest] = useState({ title:'', date:'', totalWords:0, passCut:0 });
   const [showVocabForm, setShowVocabForm] = useState(false);
   const [editVocabTest, setEditVocabTest] = useState(null);
+  const [vocabSections, setVocabSections] = useState([]);
+  const [newVocabSection, setNewVocabSection] = useState('');
   const [isTestEditMode, setIsTestEditMode] = useState(false);
   const [testSectionCollapsed, setTestSectionCollapsed] = useState({ main: false, mini: false });
   const [selectedReportTests, setSelectedReportTests] = useState({});
@@ -1005,6 +1007,8 @@ export default function App() {
                 if (d.darkMode !== undefined) setDarkMode(d.darkMode);
               }
             }));
+            unsubscribers.push(onSnapshot(collection(db, ...basePath, 'vocabSections'), s =>
+              setVocabSections(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.order||0)-(b.order||0)))));
             unsubscribers.push(onSnapshot(collection(db, ...basePath, 'vocabTests'), s =>
               setVocabTests(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.date||'').localeCompare(b.date||'')))));
             unsubscribers.push(onSnapshot(collection(db, ...basePath, 'vocabScores'), s => {
@@ -1725,6 +1729,39 @@ export default function App() {
           {activeTab === 'vocab' && (
             <div className="max-w-5xl mx-auto space-y-6">
 
+              {/* 단어 영역 관리 (마스터) */}
+              {userRole === 'master' && (
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-base font-black text-slate-800 flex items-center gap-2"><BookMarked size={18} className="text-indigo-500"/> 단어 영역 관리</h2>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {vocabSections.map(sec=>(
+                      <div key={sec.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-100">
+                        <span className="text-xs font-black text-indigo-700">{sec.name}</span>
+                        <button onClick={async()=>await deleteDoc(doc(db,'artifacts',APP_ID,'public','data','vocabSections',sec.id))}
+                          className="text-indigo-300 hover:text-red-500 transition-colors"><LucideX size={11}/></button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input value={newVocabSection} onChange={e=>setNewVocabSection(e.target.value)}
+                      onKeyDown={async e=>{
+                        if(e.key==='Enter'&&newVocabSection.trim()){
+                          await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabSections','vs'+Date.now()),{name:newVocabSection.trim(),order:vocabSections.length});
+                          setNewVocabSection('');
+                        }
+                      }}
+                      placeholder="영역명 입력 (예: 본문 1과 단어)" className="flex-1 px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-400 text-sm text-slate-800"/>
+                    <button onClick={async()=>{
+                      if(!newVocabSection.trim()) return;
+                      await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabSections','vs'+Date.now()),{name:newVocabSection.trim(),order:vocabSections.length});
+                      setNewVocabSection('');
+                    }} className="px-4 py-2.5 rounded-2xl font-black text-white text-sm" style={{background:'var(--sc)'}}>추가</button>
+                  </div>
+                </div>
+              )}
+
               {/* 시험 등록 (마스터) */}
               {userRole === 'master' && (
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
@@ -1759,29 +1796,25 @@ export default function App() {
                             placeholder="예: 3" className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
                         </div>
                       </div>
-                      {/* 섹션 설정 */}
+                      {/* 단어 영역 선택 */}
                       <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-[10px] font-black text-slate-400 uppercase">섹션 (선택)</p>
-                          <button onClick={()=>setNewVocabTest(p=>({...p,sections:[...(p.sections||[]),{name:'',words:0}]}))}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black bg-slate-100 text-slate-500 hover:bg-slate-200 transition-all">
-                            <Plus size={10}/> 섹션 추가
-                          </button>
-                        </div>
-                        {(newVocabTest.sections||[]).length === 0 ? (
-                          <p className="text-[11px] text-slate-400">섹션 없이 전체 단어 수만 사용합니다.</p>
+                        <p className="text-[10px] font-black text-slate-400 mb-2 uppercase">단어 영역 선택 (선택)</p>
+                        {vocabSections.length === 0 ? (
+                          <p className="text-[11px] text-slate-400">등록된 단어 영역이 없습니다. 아래에서 먼저 영역을 추가하세요.</p>
                         ) : (
-                          <div className="space-y-2">
-                            {(newVocabTest.sections||[]).map((sec,i)=>(
-                              <div key={i} className="flex gap-2 items-center">
-                                <input value={sec.name} onChange={e=>{const s=[...(newVocabTest.sections||[])];s[i]={...s[i],name:e.target.value};setNewVocabTest(p=>({...p,sections:s}));}}
-                                  placeholder="섹션명 (예: 본문 단어)" className="flex-1 px-3 py-2 bg-slate-50 border-2 border-transparent rounded-xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
-                                <input type="number" min="0" value={sec.words||''} onChange={e=>{const s=[...(newVocabTest.sections||[])];s[i]={...s[i],words:parseInt(e.target.value)||0};setNewVocabTest(p=>({...p,sections:s}));}}
-                                  placeholder="단어수" className="w-20 px-2 py-2 bg-slate-50 border-2 border-transparent rounded-xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800 text-center"/>
-                                <button onClick={()=>setNewVocabTest(p=>({...p,sections:(p.sections||[]).filter((_,j)=>j!==i)}))}
-                                  className="p-1.5 text-red-300 hover:text-red-500 rounded-lg transition-all"><LucideX size={13}/></button>
-                              </div>
-                            ))}
+                          <div className="flex flex-wrap gap-2">
+                            {vocabSections.map(sec=>{
+                              const sel=(newVocabTest.sectionIds||[]).includes(sec.id);
+                              return (
+                                <button key={sec.id} onClick={()=>setNewVocabTest(p=>({
+                                  ...p,
+                                  sectionIds:sel?(p.sectionIds||[]).filter(id=>id!==sec.id):[...(p.sectionIds||[]),sec.id]
+                                }))} className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${sel?'text-white border-transparent':'border-slate-200 text-slate-500 bg-white hover:border-blue-300'}`}
+                                style={sel?{background:'var(--sc)'}:{}}>
+                                  {sec.name}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -1789,7 +1822,7 @@ export default function App() {
                         if(!newVocabTest.title.trim()||!newVocabTest.totalWords){alert('제목과 전체 단어 수를 입력해주세요.');return;}
                         const id='vt'+Date.now();
                         await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabTests',id),newVocabTest);
-                        setNewVocabTest({title:'',date:'',totalWords:0,passCut:0,sections:[]});
+                        setNewVocabTest({title:'',date:'',totalWords:0,passCut:0,sectionIds:[]});
                         setShowVocabForm(false);
                       }} className="w-full py-3 text-white rounded-2xl font-black shadow-sm" style={{background:'var(--sc)'}}>시험 등록</button>
                     </div>
@@ -1812,12 +1845,12 @@ export default function App() {
                               <p className="font-black text-slate-700">{vt.title}</p>
                               <p className="font-medium text-slate-400 text-[10px]">{vt.date} · {vt.totalWords}개</p>
                               <p className="font-black text-blue-500 text-[10px]">컷: {vt.passCut}개 이하</p>
-                              {(vt.sections||[]).length > 0 && (
+                              {(vt.sectionIds||[]).length > 0 && (
                                 <div className="flex flex-wrap gap-0.5 justify-center mt-1">
-                                  {(vt.sections||[]).map((sec,i)=>(
-                                    <span key={i} className="text-[9px] font-black px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded-full border border-blue-100">
-                                      {sec.name}{sec.words?` (${sec.words})`:''}</span>
-                                  ))}
+                                  {(vt.sectionIds||[]).map(sid=>{
+                                    const sec=vocabSections.find(s=>s.id===sid);
+                                    return sec?<span key={sid} className="text-[9px] font-black px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded-full border border-blue-100">{sec.name}</span>:null;
+                                  })}
                                 </div>
                               )}
                               {userRole==='master' && (
@@ -1850,10 +1883,10 @@ export default function App() {
                                   {userRole==='master' ? (
                                     <div className="space-y-1.5 py-1">
                                       {/* 섹션별 or 전체 틀린 개수 */}
-                                      {(vt.sections||[]).length > 0 ? (
+                                      {(vt.sectionIds||[]).length > 0 ? (
                                         <div className="space-y-1">
-                                          {(vt.sections||[]).map((sec,si)=>{
-                                            const skey = key+'-s'+si;
+                                          {(vt.sectionIds||[]).map((sid,si)=>{
+                                            const sec=vocabSections.find(s=>s.id===sid)||{name:sid};
                                             const sw = sc['secWrong_'+si]??null;
                                             return (
                                               <div key={si} className="flex items-center gap-1">
@@ -3837,31 +3870,23 @@ export default function App() {
                       className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
                   </div>
                 </div>
-                {/* 섹션 편집 */}
+                {/* 단어 영역 선택 */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase">섹션</p>
-                    <button onClick={()=>setEditVocabTest(p=>({...p,sections:[...(p.sections||[]),{name:'',words:0}]}))}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black bg-slate-100 text-slate-500 hover:bg-slate-200">
-                      <Plus size={10}/> 섹션 추가
-                    </button>
+                  <p className="text-[10px] font-black text-slate-400 mb-2 uppercase">단어 영역 선택</p>
+                  <div className="flex flex-wrap gap-2">
+                    {vocabSections.map(sec=>{
+                      const sel=(editVocabTest.sectionIds||[]).includes(sec.id);
+                      return (
+                        <button key={sec.id} onClick={()=>setEditVocabTest(p=>({
+                          ...p,
+                          sectionIds:sel?(p.sectionIds||[]).filter(id=>id!==sec.id):[...(p.sectionIds||[]),sec.id]
+                        }))} className={`px-3 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${sel?'text-white border-transparent':'border-slate-200 text-slate-500 bg-white hover:border-blue-300'}`}
+                        style={sel?{background:'var(--sc)'}:{}}>
+                          {sec.name}
+                        </button>
+                      );
+                    })}
                   </div>
-                  {(editVocabTest.sections||[]).length === 0 ? (
-                    <p className="text-[11px] text-slate-400">섹션 없이 전체 단어 수만 사용합니다.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(editVocabTest.sections||[]).map((sec,i)=>(
-                        <div key={i} className="flex gap-2 items-center">
-                          <input value={sec.name} onChange={e=>{const s=[...(editVocabTest.sections||[])];s[i]={...s[i],name:e.target.value};setEditVocabTest(p=>({...p,sections:s}));}}
-                            placeholder="섹션명" className="flex-1 px-3 py-2 bg-slate-50 border-2 border-transparent rounded-xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
-                          <input type="number" min="0" value={sec.words||''} onChange={e=>{const s=[...(editVocabTest.sections||[])];s[i]={...s[i],words:parseInt(e.target.value)||0};setEditVocabTest(p=>({...p,sections:s}));}}
-                            placeholder="단어수" className="w-20 px-2 py-2 bg-slate-50 border-2 border-transparent rounded-xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800 text-center"/>
-                          <button onClick={()=>setEditVocabTest(p=>({...p,sections:(p.sections||[]).filter((_,j)=>j!==i)}))}
-                            className="p-1.5 text-red-300 hover:text-red-500 rounded-lg transition-all"><LucideX size={13}/></button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 <div className="flex gap-3 pt-2">
                   <button onClick={()=>setEditVocabTest(null)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm">취소</button>
@@ -3869,7 +3894,7 @@ export default function App() {
                     if(!editVocabTest.title.trim()||!editVocabTest.totalWords){alert('제목과 전체 단어 수를 입력해주세요.');return;}
                     await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabTests',editVocabTest.id),{
                       title:editVocabTest.title, date:editVocabTest.date, totalWords:editVocabTest.totalWords,
-                      passCut:editVocabTest.passCut, sections:editVocabTest.sections||[]
+                      passCut:editVocabTest.passCut, sectionIds:editVocabTest.sectionIds||[]
                     },{merge:true});
                     setEditVocabTest(null);
                   }} className="flex-2 px-8 py-3 text-white rounded-2xl font-black text-sm shadow-lg" style={{background:'var(--sc)'}}>저장</button>
