@@ -1435,6 +1435,7 @@ export default function App() {
               {[
                 { id: 'matrix',       l: '과제 현황', i: BarChart3 },
                 { id: 'memorization', l: '암기 현황', i: BrainCircuit },
+                { id: 'vocab',        l: '영단어',    i: BookMarked },
                 { id: 'tests',        l: '성적표',    i: Trophy },
                 { id: 'attendance',   l: '출결 관리', i: Calendar },
                 { id: 'progress',     l: '진도 관리', i: TrendingUp },
@@ -1714,6 +1715,174 @@ export default function App() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ====================================================
+              영단어
+          ==================================================== */}
+          {activeTab === 'vocab' && (
+            <div className="max-w-5xl mx-auto space-y-6">
+
+              {/* 시험 등록 (마스터) */}
+              {userRole === 'master' && (
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-base font-black text-slate-800 flex items-center gap-2"><BookMarked size={18} className="text-blue-500"/> 단어 시험 관리</h2>
+                    <button onClick={()=>setShowVocabForm(p=>!p)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-white shadow-sm" style={{background:'var(--sc)'}}>
+                      <Plus size={12}/> {showVocabForm ? '닫기' : '새 시험 등록'}
+                    </button>
+                  </div>
+                  {showVocabForm && (
+                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">시험 제목</p>
+                          <input value={newVocabTest.title} onChange={e=>setNewVocabTest(p=>({...p,title:e.target.value}))}
+                            placeholder="예: Week 1 단어시험" className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">날짜</p>
+                          <input type="date" value={newVocabTest.date} onChange={e=>setNewVocabTest(p=>({...p,date:e.target.value}))}
+                            className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">전체 단어 수</p>
+                          <input type="number" min="1" value={newVocabTest.totalWords||''} onChange={e=>setNewVocabTest(p=>({...p,totalWords:parseInt(e.target.value)||0}))}
+                            placeholder="예: 30" className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">합격 컷 (최대 틀린 개수)</p>
+                          <input type="number" min="0" value={newVocabTest.passCut||''} onChange={e=>setNewVocabTest(p=>({...p,passCut:parseInt(e.target.value)||0}))}
+                            placeholder="예: 3" className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                        </div>
+                      </div>
+                      <button onClick={async()=>{
+                        if(!newVocabTest.title.trim()||!newVocabTest.totalWords){alert('제목과 전체 단어 수를 입력해주세요.');return;}
+                        const id='vt'+Date.now();
+                        await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabTests',id),newVocabTest);
+                        setNewVocabTest({title:'',date:'',totalWords:0,passCut:0});
+                        setShowVocabForm(false);
+                      }} className="w-full py-3 text-white rounded-2xl font-black shadow-sm" style={{background:'var(--sc)'}}>시험 등록</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 성적 테이블 */}
+              {vocabTests.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-slate-400 font-bold shadow-sm">등록된 단어 시험이 없습니다.</div>
+              ) : (
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100">
+                          <th className="px-4 py-3 text-left font-black text-slate-600 bg-slate-50 sticky left-0 min-w-[80px]">학생</th>
+                          {vocabTests.map(vt=>(
+                            <th key={vt.id} className="px-3 py-2 text-center min-w-[130px] border-l border-slate-100">
+                              <p className="font-black text-slate-700">{vt.title}</p>
+                              <p className="font-medium text-slate-400 text-[10px]">{vt.date} · {vt.totalWords}개</p>
+                              <p className="font-black text-blue-500 text-[10px]">컷: {vt.passCut}개 이하</p>
+                              {userRole==='master' && (
+                                <button onClick={async()=>{if(window.confirm('삭제할까요?'))await deleteDoc(doc(db,'artifacts',APP_ID,'public','data','vocabTests',vt.id));}}
+                                  className="text-[9px] text-red-300 hover:text-red-500 font-black mt-0.5">삭제</button>
+                              )}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleStudentsFiltered.map(s=>(
+                          <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                            <td className="px-4 py-3 font-black text-slate-700 sticky left-0 bg-white">{s.name}</td>
+                            {vocabTests.map(vt=>{
+                              const key=s.id+'-'+vt.id;
+                              const sc=vocabScores[key]||{};
+                              const effectiveCut=sc.customCut!=null?sc.customCut:vt.passCut;
+                              const wrong=sc.wrong!=null?sc.wrong:null;
+                              const correct=wrong!=null?vt.totalWords-wrong:null;
+                              const passed=wrong!=null?wrong<=effectiveCut:null;
+                              const retryWrong=sc.retryWrong!=null?sc.retryWrong:null;
+                              const retryPassed=retryWrong!=null?retryWrong<=effectiveCut:null;
+                              return (
+                                <td key={vt.id} className="px-3 py-2 text-center border-l border-slate-100 align-top">
+                                  {userRole==='master' ? (
+                                    <div className="space-y-1.5 py-1">
+                                      {/* 틀린 개수 */}
+                                      <div className="flex items-center gap-1 justify-center">
+                                        <input type="number" min="0" max={vt.totalWords} value={wrong??''}
+                                          onChange={async e=>{
+                                            const v=e.target.value===''?null:parseInt(e.target.value);
+                                            await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),{wrong:v},{merge:true});
+                                          }}
+                                          placeholder="-" className="w-12 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-center font-black outline-none focus:border-blue-400 text-xs"/>
+                                        <span className="text-[9px] text-slate-400">틀림</span>
+                                      </div>
+                                      {wrong!=null && (
+                                        <div className={`text-[10px] font-black px-2 py-0.5 rounded-full inline-block ${passed?'bg-emerald-100 text-emerald-600':'bg-red-100 text-red-500'}`}>
+                                          {passed?'✓ 합격':'✗ 불합격'} ({correct}/{vt.totalWords})
+                                        </div>
+                                      )}
+                                      {/* 컷 완화 */}
+                                      <div className="flex items-center gap-1 justify-center">
+                                        <span className="text-[9px] text-amber-500 font-black">컷완화</span>
+                                        <input type="number" min="0" max={vt.totalWords} value={sc.customCut??''}
+                                          onChange={async e=>{
+                                            const v=e.target.value===''?null:parseInt(e.target.value);
+                                            await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),{customCut:v},{merge:true});
+                                          }}
+                                          placeholder={String(vt.passCut)} className="w-10 px-1 py-0.5 bg-amber-50 border border-amber-200 rounded-lg text-center font-black outline-none focus:border-amber-400 text-[10px]"/>
+                                      </div>
+                                      {/* 재시험 */}
+                                      {wrong!=null && !passed && (
+                                        <div className="space-y-1 pt-1 border-t border-slate-100">
+                                          <p className="text-[9px] font-black text-purple-500">재시험</p>
+                                          <div className="flex items-center gap-1 justify-center">
+                                            <input type="number" min="0" max={vt.totalWords} value={retryWrong??''}
+                                              onChange={async e=>{
+                                                const v=e.target.value===''?null:parseInt(e.target.value);
+                                                await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),{retryWrong:v},{merge:true});
+                                              }}
+                                              placeholder="-" className="w-12 px-1.5 py-1 bg-purple-50 border border-purple-200 rounded-lg text-center font-black outline-none focus:border-purple-400 text-xs"/>
+                                            <span className="text-[9px] text-slate-400">틀림</span>
+                                          </div>
+                                          {retryWrong!=null && (
+                                            <div className={`text-[10px] font-black px-2 py-0.5 rounded-full inline-block ${retryPassed?'bg-emerald-100 text-emerald-600':'bg-red-100 text-red-500'}`}>
+                                              재시험 {retryPassed?'✓ 통과':'✗ 미통과'}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-1 py-1">
+                                      {wrong!=null ? (
+                                        <>
+                                          <div className={`text-[11px] font-black px-2 py-1 rounded-full inline-block ${passed?'bg-emerald-100 text-emerald-600':'bg-red-100 text-red-500'}`}>
+                                            {passed?'✓ 합격':'✗ 불합격'}
+                                          </div>
+                                          <p className="text-[10px] text-slate-500 font-bold">{correct}/{vt.totalWords}</p>
+                                          {!passed && retryWrong!=null && (
+                                            <div className={`text-[9px] font-black px-1.5 py-0.5 rounded-full inline-block ${retryPassed?'bg-purple-100 text-purple-600':'bg-slate-100 text-slate-400'}`}>
+                                              재시험 {retryPassed?'통과':'미통과'}
+                                            </div>
+                                          )}
+                                        </>
+                                      ) : <span className="text-slate-300 font-bold">-</span>}
+                                    </div>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
