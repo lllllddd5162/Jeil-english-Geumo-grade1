@@ -2823,52 +2823,6 @@ export default function App() {
                     </div>
                   </div>
                   <div className="space-y-6">
-                    {/* 항목 모음 (템플릿) */}
-                    <div className="bg-indigo-50 rounded-2xl border border-indigo-100 p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-[11px] font-black text-indigo-600 uppercase flex items-center gap-1.5"><Layers size={12}/> 항목 모음 템플릿</p>
-                        {userRole === 'master' && (
-                          <button onClick={()=>setShowTemplateModal(true)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-indigo-600 text-white hover:bg-indigo-700 transition-all">
-                            <Plus size={10}/> 새 템플릿
-                          </button>
-                        )}
-                      </div>
-                      {templates.filter(t=>t.category===regCategory).length === 0 ? (
-                        <p className="text-[11px] text-indigo-400 font-bold">등록된 템플릿이 없습니다. "+ 새 템플릿" 버튼으로 추가하세요.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {templates.filter(t=>t.category===regCategory).map(tpl=>(
-                            <div key={tpl.id} className="bg-white rounded-xl border border-indigo-100 p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-black text-slate-700 text-xs">{tpl.name}</span>
-
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <button onClick={()=>applyTemplate(tpl)}
-                                    className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center gap-1">
-                                    <Layers size={9}/> 일괄 등록
-                                  </button>
-                                  {userRole === 'master' && (
-                                    <button onClick={()=>deleteTemplate(tpl.id)}
-                                      className="p-1 text-red-300 hover:text-red-500 rounded-lg transition-all"><Trash2 size={12}/></button>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap gap-1">
-                                {(tpl.items||[]).map((item,i)=>(
-                                  <span key={i} className="text-[10px] font-bold px-2 py-0.5 bg-slate-50 rounded-lg border border-slate-100 text-slate-500">
-                                    {i+1}. {item}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
                     {/* 과목 선택 */}
                     <div>
                       <p className="text-[10px] font-black text-slate-400 mb-3 uppercase flex items-center gap-1"><Tag size={12}/> 1. 과목
@@ -2989,6 +2943,47 @@ export default function App() {
 
                     {/* 제목 + 마감일 */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 항목 모음 (템플릿) */}
+                    <div className="bg-indigo-50 rounded-2xl border border-indigo-100 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-[11px] font-black text-indigo-600 uppercase flex items-center gap-1.5"><Layers size={12}/> 항목 모음 템플릿</p>
+                        {userRole === 'master' && (
+                          <button onClick={()=>setShowTemplateModal(true)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-indigo-600 text-white hover:bg-indigo-700 transition-all">
+                            <Plus size={10}/> 새 템플릿
+                          </button>
+                        )}
+                      </div>
+                      {templates.filter(t=>t.category===regCategory).length === 0 ? (
+                        <p className="text-[11px] text-indigo-400 font-bold">등록된 템플릿이 없습니다. "+ 새 템플릿" 버튼으로 추가하세요.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {templates.filter(t=>t.category===regCategory).map(tpl=>(
+                            <div key={tpl.id} className="bg-white rounded-xl border border-indigo-100 p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-black text-slate-700 text-xs">{tpl.name}</span>
+                                <div className="flex items-center gap-1">
+                                  <button onClick={()=>applyTemplate(tpl)}
+                                    className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center gap-1">
+                                    <Layers size={9}/> 일괄 등록
+                                  </button>
+                                  {userRole === 'master' && (
+                                    <button onClick={()=>deleteTemplate(tpl.id)}
+                                      className="p-1 text-red-300 hover:text-red-500 rounded-lg transition-all"><Trash2 size={12}/></button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {(tpl.items||[]).map((item,i)=>(
+                                  <span key={i} className="text-[10px] font-bold px-2 py-0.5 bg-slate-50 rounded-lg border border-slate-100 text-slate-500">{i+1}. {item}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                       <div>
                         <p className="text-[10px] font-black text-slate-400 mb-2 uppercase">{regCategory==='memorization'?'5':'4'}. 항목 제목</p>
                         <BufferedInput value={newAssignment.title} onSave={(v)=>setNewAssignment(p=>({...p,title:v}))} placeholder="항목 제목 입력..."
@@ -3504,7 +3499,7 @@ export default function App() {
                 <div>
                   <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">종류</p>
                   <div className="flex gap-2">
-                    {[{v:'memorization',l:'암기'},{v:'assignment',l:'과제'}].map(c=>(
+                    {[{v:'assignment',l:'과제'},{v:'memorization',l:'암기'}].map(c=>(
                       <button key={c.v} onClick={()=>setNewTemplate(p=>({...p,category:c.v}))}
                         className={`flex-1 py-2.5 rounded-2xl text-sm font-black border-2 transition ${newTemplate.category===c.v?'bg-indigo-600 border-indigo-600 text-white':'bg-white border-slate-100 text-slate-400'}`}>{c.l}</button>
                     ))}
