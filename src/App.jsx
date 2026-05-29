@@ -618,6 +618,7 @@ export default function App() {
   const [vocabScores, setVocabScores] = useState({});
   const [newVocabTest, setNewVocabTest] = useState({ title:'', date:'', totalWords:0, passCut:0 });
   const [showVocabForm, setShowVocabForm] = useState(false);
+  const [editVocabTest, setEditVocabTest] = useState(null);
   const [isTestEditMode, setIsTestEditMode] = useState(false);
   const [testSectionCollapsed, setTestSectionCollapsed] = useState({ main: false, mini: false });
   const [selectedReportTests, setSelectedReportTests] = useState({});
@@ -1758,11 +1759,37 @@ export default function App() {
                             placeholder="예: 3" className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
                         </div>
                       </div>
+                      {/* 섹션 설정 */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[10px] font-black text-slate-400 uppercase">섹션 (선택)</p>
+                          <button onClick={()=>setNewVocabTest(p=>({...p,sections:[...(p.sections||[]),{name:'',words:0}]}))}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black bg-slate-100 text-slate-500 hover:bg-slate-200 transition-all">
+                            <Plus size={10}/> 섹션 추가
+                          </button>
+                        </div>
+                        {(newVocabTest.sections||[]).length === 0 ? (
+                          <p className="text-[11px] text-slate-400">섹션 없이 전체 단어 수만 사용합니다.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {(newVocabTest.sections||[]).map((sec,i)=>(
+                              <div key={i} className="flex gap-2 items-center">
+                                <input value={sec.name} onChange={e=>{const s=[...(newVocabTest.sections||[])];s[i]={...s[i],name:e.target.value};setNewVocabTest(p=>({...p,sections:s}));}}
+                                  placeholder="섹션명 (예: 본문 단어)" className="flex-1 px-3 py-2 bg-slate-50 border-2 border-transparent rounded-xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                                <input type="number" min="0" value={sec.words||''} onChange={e=>{const s=[...(newVocabTest.sections||[])];s[i]={...s[i],words:parseInt(e.target.value)||0};setNewVocabTest(p=>({...p,sections:s}));}}
+                                  placeholder="단어수" className="w-20 px-2 py-2 bg-slate-50 border-2 border-transparent rounded-xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800 text-center"/>
+                                <button onClick={()=>setNewVocabTest(p=>({...p,sections:(p.sections||[]).filter((_,j)=>j!==i)}))}
+                                  className="p-1.5 text-red-300 hover:text-red-500 rounded-lg transition-all"><LucideX size={13}/></button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <button onClick={async()=>{
                         if(!newVocabTest.title.trim()||!newVocabTest.totalWords){alert('제목과 전체 단어 수를 입력해주세요.');return;}
                         const id='vt'+Date.now();
                         await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabTests',id),newVocabTest);
-                        setNewVocabTest({title:'',date:'',totalWords:0,passCut:0});
+                        setNewVocabTest({title:'',date:'',totalWords:0,passCut:0,sections:[]});
                         setShowVocabForm(false);
                       }} className="w-full py-3 text-white rounded-2xl font-black shadow-sm" style={{background:'var(--sc)'}}>시험 등록</button>
                     </div>
@@ -1785,9 +1812,21 @@ export default function App() {
                               <p className="font-black text-slate-700">{vt.title}</p>
                               <p className="font-medium text-slate-400 text-[10px]">{vt.date} · {vt.totalWords}개</p>
                               <p className="font-black text-blue-500 text-[10px]">컷: {vt.passCut}개 이하</p>
+                              {(vt.sections||[]).length > 0 && (
+                                <div className="flex flex-wrap gap-0.5 justify-center mt-1">
+                                  {(vt.sections||[]).map((sec,i)=>(
+                                    <span key={i} className="text-[9px] font-black px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded-full border border-blue-100">
+                                      {sec.name}{sec.words?` (${sec.words})`:''}</span>
+                                  ))}
+                                </div>
+                              )}
                               {userRole==='master' && (
-                                <button onClick={async()=>{if(window.confirm('삭제할까요?'))await deleteDoc(doc(db,'artifacts',APP_ID,'public','data','vocabTests',vt.id));}}
-                                  className="text-[9px] text-red-300 hover:text-red-500 font-black mt-0.5">삭제</button>
+                                <div className="flex items-center justify-center gap-2 mt-0.5">
+                                  <button onClick={()=>setEditVocabTest({...vt})}
+                                    className="text-[9px] text-blue-400 hover:text-blue-600 font-black">수정</button>
+                                  <button onClick={async()=>{if(window.confirm('삭제할까요?'))await deleteDoc(doc(db,'artifacts',APP_ID,'public','data','vocabTests',vt.id));}}
+                                    className="text-[9px] text-red-300 hover:text-red-500 font-black">삭제</button>
+                                </div>
                               )}
                             </th>
                           ))}
@@ -1810,16 +1849,44 @@ export default function App() {
                                 <td key={vt.id} className="px-3 py-2 text-center border-l border-slate-100 align-top">
                                   {userRole==='master' ? (
                                     <div className="space-y-1.5 py-1">
-                                      {/* 틀린 개수 */}
-                                      <div className="flex items-center gap-1 justify-center">
-                                        <input type="number" min="0" max={vt.totalWords} value={wrong??''}
-                                          onChange={async e=>{
-                                            const v=e.target.value===''?null:parseInt(e.target.value);
-                                            await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),{wrong:v},{merge:true});
-                                          }}
-                                          placeholder="-" className="w-12 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-center font-black outline-none focus:border-blue-400 text-xs"/>
-                                        <span className="text-[9px] text-slate-400">틀림</span>
-                                      </div>
+                                      {/* 섹션별 or 전체 틀린 개수 */}
+                                      {(vt.sections||[]).length > 0 ? (
+                                        <div className="space-y-1">
+                                          {(vt.sections||[]).map((sec,si)=>{
+                                            const skey = key+'-s'+si;
+                                            const sw = sc['secWrong_'+si]??null;
+                                            return (
+                                              <div key={si} className="flex items-center gap-1">
+                                                <span className="text-[9px] font-black text-blue-500 w-14 truncate">{sec.name}</span>
+                                                <input type="number" min="0" max={sec.words||vt.totalWords} value={sw??''}
+                                                  onChange={async e=>{
+                                                    const v=e.target.value===''?null:parseInt(e.target.value);
+                                                    const update={'secWrong_'+si:v};
+                                                    // 전체 틀린 개수 자동 합산
+                                                    const newSecs={...sc,...update};
+                                                    let total=0;
+                                                    (vt.sections||[]).forEach((_,idx)=>{const val=newSecs['secWrong_'+idx];if(val!=null)total+=val;});
+                                                    update.wrong=total;
+                                                    await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),update,{merge:true});
+                                                  }}
+                                                  placeholder="-" className="w-10 px-1 py-0.5 bg-slate-50 border border-slate-200 rounded-lg text-center font-black outline-none focus:border-blue-400 text-[10px]"/>
+                                                <span className="text-[9px] text-slate-400">/{sec.words||'?'}</span>
+                                              </div>
+                                            );
+                                          })}
+                                          {wrong!=null && <p className="text-[9px] font-black text-slate-400 text-center">합계 {wrong}개 틀림</p>}
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1 justify-center">
+                                          <input type="number" min="0" max={vt.totalWords} value={wrong??''}
+                                            onChange={async e=>{
+                                              const v=e.target.value===''?null:parseInt(e.target.value);
+                                              await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabScores',key),{wrong:v},{merge:true});
+                                            }}
+                                            placeholder="-" className="w-12 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-center font-black outline-none focus:border-blue-400 text-xs"/>
+                                          <span className="text-[9px] text-slate-400">틀림</span>
+                                        </div>
+                                      )}
                                       {wrong!=null && (
                                         <div className={`text-[10px] font-black px-2 py-0.5 rounded-full inline-block ${passed?'bg-emerald-100 text-emerald-600':'bg-red-100 text-red-500'}`}>
                                           {passed?'✓ 합격':'✗ 불합격'} ({correct}/{vt.totalWords})
@@ -3734,6 +3801,79 @@ export default function App() {
                 <button onClick={saveTemplate} className="w-full py-4 text-white rounded-2xl font-black shadow-lg transition-all active:scale-95" style={{background:'var(--sc)'}}>
                   템플릿 저장
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 단어 시험 수정 모달 */}
+        {editVocabTest && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={()=>setEditVocabTest(null)}>
+            <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden" onClick={e=>e.stopPropagation()}>
+              <div className="p-6 text-white flex justify-between items-center" style={{background:'var(--sc-darker)'}}>
+                <h2 className="text-lg font-black flex items-center gap-2"><BookMarked size={18}/> 단어 시험 수정</h2>
+                <button onClick={()=>setEditVocabTest(null)} className="p-1 hover:bg-white/10 rounded-full"><LucideX size={18}/></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">시험 제목</p>
+                    <input value={editVocabTest.title} onChange={e=>setEditVocabTest(p=>({...p,title:e.target.value}))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">날짜</p>
+                    <input type="date" value={editVocabTest.date} onChange={e=>setEditVocabTest(p=>({...p,date:e.target.value}))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">전체 단어 수</p>
+                    <input type="number" min="1" value={editVocabTest.totalWords||''} onChange={e=>setEditVocabTest(p=>({...p,totalWords:parseInt(e.target.value)||0}))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">합격 컷 (최대 틀린 개수)</p>
+                    <input type="number" min="0" value={editVocabTest.passCut??''} onChange={e=>setEditVocabTest(p=>({...p,passCut:parseInt(e.target.value)||0}))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                  </div>
+                </div>
+                {/* 섹션 편집 */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">섹션</p>
+                    <button onClick={()=>setEditVocabTest(p=>({...p,sections:[...(p.sections||[]),{name:'',words:0}]}))}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black bg-slate-100 text-slate-500 hover:bg-slate-200">
+                      <Plus size={10}/> 섹션 추가
+                    </button>
+                  </div>
+                  {(editVocabTest.sections||[]).length === 0 ? (
+                    <p className="text-[11px] text-slate-400">섹션 없이 전체 단어 수만 사용합니다.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(editVocabTest.sections||[]).map((sec,i)=>(
+                        <div key={i} className="flex gap-2 items-center">
+                          <input value={sec.name} onChange={e=>{const s=[...(editVocabTest.sections||[])];s[i]={...s[i],name:e.target.value};setEditVocabTest(p=>({...p,sections:s}));}}
+                            placeholder="섹션명" className="flex-1 px-3 py-2 bg-slate-50 border-2 border-transparent rounded-xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800"/>
+                          <input type="number" min="0" value={sec.words||''} onChange={e=>{const s=[...(editVocabTest.sections||[])];s[i]={...s[i],words:parseInt(e.target.value)||0};setEditVocabTest(p=>({...p,sections:s}));}}
+                            placeholder="단어수" className="w-20 px-2 py-2 bg-slate-50 border-2 border-transparent rounded-xl font-bold outline-none focus:border-blue-400 text-sm text-slate-800 text-center"/>
+                          <button onClick={()=>setEditVocabTest(p=>({...p,sections:(p.sections||[]).filter((_,j)=>j!==i)}))}
+                            className="p-1.5 text-red-300 hover:text-red-500 rounded-lg transition-all"><LucideX size={13}/></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button onClick={()=>setEditVocabTest(null)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm">취소</button>
+                  <button onClick={async()=>{
+                    if(!editVocabTest.title.trim()||!editVocabTest.totalWords){alert('제목과 전체 단어 수를 입력해주세요.');return;}
+                    await setDoc(doc(db,'artifacts',APP_ID,'public','data','vocabTests',editVocabTest.id),{
+                      title:editVocabTest.title, date:editVocabTest.date, totalWords:editVocabTest.totalWords,
+                      passCut:editVocabTest.passCut, sections:editVocabTest.sections||[]
+                    },{merge:true});
+                    setEditVocabTest(null);
+                  }} className="flex-2 px-8 py-3 text-white rounded-2xl font-black text-sm shadow-lg" style={{background:'var(--sc)'}}>저장</button>
+                </div>
               </div>
             </div>
           </div>
