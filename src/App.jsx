@@ -819,7 +819,8 @@ export default function App() {
     const validItems = newTemplate.items.filter(i => i.trim());
     if (!validItems.length) { alert('항목을 1개 이상 입력해주세요.'); return; }
     const id = 'tpl' + Date.now();
-    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'templates', id), {
+    const tplRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'templates', id);
+    await setDoc(tplRef, {
       name: newTemplate.name, category: newTemplate.category, items: validItems
     });
     setShowTemplateModal(false);
@@ -828,7 +829,7 @@ export default function App() {
 
   const deleteTemplate = async (id) => {
     if (userRole !== 'master') return;
-    await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'templates', id));
+    await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'templates', id)).catch(e => console.error('삭제 실패:', e));
   };
 
   const applyTemplate = async (tpl) => {
@@ -995,6 +996,8 @@ export default function App() {
                 if (d.darkMode !== undefined) setDarkMode(d.darkMode);
               }
             }));
+            unsubscribers.push(onSnapshot(collection(db, ...basePath, 'templates'), s =>
+              setTemplates(s.docs.map(d => ({ id: d.id, ...d.data() })))));
             unsubscribers.push(onSnapshot(query(collection(db, ...basePath, 'students')), s =>
               setStudents(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
                 if (a.sortOrder != null && b.sortOrder != null) return a.sortOrder - b.sortOrder;
