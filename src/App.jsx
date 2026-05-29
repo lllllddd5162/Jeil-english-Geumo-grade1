@@ -1861,7 +1861,7 @@ export default function App() {
                                                 <input type="number" min="0" max={sec.words||vt.totalWords} value={sw??''}
                                                   onChange={async e=>{
                                                     const v=e.target.value===''?null:parseInt(e.target.value);
-                                                    const update={'secWrong_'+si:v};
+                                                    const update={}; update['secWrong_'+si]=v;
                                                     // 전체 틀린 개수 자동 합산
                                                     const newSecs={...sc,...update};
                                                     let total=0;
