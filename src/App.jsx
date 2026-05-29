@@ -602,7 +602,7 @@ export default function App() {
   const [newAssignment, setNewAssignment] = useState({ title: '', subject: '', level: '기본', type: 'all', targetStudents: [], deadline: '', memoSection: '' });
   const [templates, setTemplates] = useState([]);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [newTemplate, setNewTemplate] = useState({ name: '', category: 'memorization', subject: '', memoSection: '', items: [''] });
+  const [newTemplate, setNewTemplate] = useState({ name: '', category: 'memorization', items: [''] });
   const [editItemId, setEditItemId] = useState(null);
   const [editItemData, setEditItemData] = useState(null);
 
@@ -820,10 +820,10 @@ export default function App() {
     if (!validItems.length) { alert('항목을 1개 이상 입력해주세요.'); return; }
     const id = 'tpl' + Date.now();
     await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'templates', id), {
-      ...newTemplate, items: validItems
+      name: newTemplate.name, category: newTemplate.category, items: validItems
     });
     setShowTemplateModal(false);
-    setNewTemplate({ name: '', category: 'memorization', subject: '', memoSection: '', items: [''] });
+    setNewTemplate({ name: '', category: 'memorization', items: [''] });
   };
 
   const deleteTemplate = async (id) => {
@@ -833,17 +833,25 @@ export default function App() {
 
   const applyTemplate = async (tpl) => {
     if (userRole !== 'master') return;
+    if (!newAssignment.subject) { alert('먼저 과목을 선택해주세요.'); return; }
     const coll = tpl.category === 'assignment' ? 'assignments' : 'memoItems';
     const list = tpl.category === 'assignment' ? assignments : memoItems;
     let sortOrder = list.length > 0 ? Math.max(...list.map(x => x.sortOrder || 0)) + 1 : 0;
     for (const title of tpl.items) {
       const id = (tpl.category === 'assignment' ? 'a' : 'm') + Date.now() + Math.random().toString(36).slice(2,6);
       await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', coll, id), {
-        title, subject: tpl.subject || '', level: '기본',
-        memoSection: tpl.memoSection || '', type: 'all', targetStudents: [],
-        sortOrder: sortOrder++, category: tpl.category
+        title,
+        subject: newAssignment.subject,
+        level: newAssignment.level || '기본',
+        memoSection: newAssignment.memoSection || '',
+        deadline: newAssignment.deadline || '',
+        type: newAssignment.type || 'all',
+        targetStudents: newAssignment.targetStudents || [],
+        sortOrder: sortOrder++,
+        category: tpl.category
       });
     }
+    alert(`"${tpl.name}" 템플릿의 ${tpl.items.length}개 항목이 등록됐습니다!`);
   };
 
   const addTest = async () => {
@@ -2829,8 +2837,7 @@ export default function App() {
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-black text-slate-700 text-xs">{tpl.name}</span>
-                                  {tpl.subject && <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{tpl.subject}</span>}
-                                  {tpl.memoSection && <span className="text-[10px] font-bold text-purple-400 bg-purple-50 px-1.5 py-0.5 rounded">[{tpl.memoSection}]</span>}
+
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <button onClick={()=>applyTemplate(tpl)}
@@ -3497,34 +3504,9 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                {/* 과목 */}
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">과목 (선택)</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button onClick={()=>setNewTemplate(p=>({...p,subject:''}))}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${!newTemplate.subject?'text-white border-transparent':'border-slate-200 text-slate-400'}`}
-                      style={!newTemplate.subject?{background:'var(--sc)'}:{}}>없음</button>
-                    {subjects.map(sub=>(
-                      <button key={sub} onClick={()=>setNewTemplate(p=>({...p,subject:sub}))}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${newTemplate.subject===sub?'text-white border-transparent':'border-slate-200 text-slate-400'}`}
-                        style={newTemplate.subject===sub?{background:'var(--sc)'}:{}}>{sub}</button>
-                    ))}
-                  </div>
+                <div className="px-3 py-2.5 bg-indigo-50 rounded-xl border border-indigo-100">
+                  <p className="text-[11px] font-black text-indigo-500">💡 과목·단원·대상은 저장하지 않아요. 등록 시 현재 선택된 설정이 자동 적용돼요.</p>
                 </div>
-                {/* 암기 영역 */}
-                {newTemplate.category==='memorization' && memoSections.length>0 && (
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">암기 영역 (선택)</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      <button onClick={()=>setNewTemplate(p=>({...p,memoSection:''}))}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${!newTemplate.memoSection?'bg-purple-600 border-purple-600 text-white':'border-slate-200 text-slate-400'}`}>없음</button>
-                      {memoSections.map(sec=>(
-                        <button key={sec} onClick={()=>setNewTemplate(p=>({...p,memoSection:sec}))}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-black border-2 transition ${newTemplate.memoSection===sec?'bg-purple-600 border-purple-600 text-white':'border-slate-200 text-slate-400'}`}>{sec}</button>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 {/* 항목 목록 */}
                 <div>
                   <p className="text-[10px] font-black text-slate-400 mb-1.5 uppercase">항목 목록 (순서대로)</p>
